@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use std::fmt;
 
 use strum::AsStaticRef;
@@ -6,11 +7,13 @@ use strum::IntoEnumIterator;
 use strum_macros::AsStaticStr;
 use strum_macros::EnumIter;
 use strum_macros::EnumString;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 //
 //  this module has the core abstraction of a card - ordinal, rank, suit, etc.
 //
 
-#[derive(EnumIter, Copy, Clone, AsStaticStr, PartialEq, Debug)]
+#[derive(EnumIter, Copy, Clone, AsStaticStr, PartialEq, Debug, Serialize, Deserialize)]
 pub(crate) enum Suit {
     Clubs = 1,
     Diamonds = 2,
@@ -25,7 +28,7 @@ impl Suit {
     }
 }
 
-#[derive(Copy, Clone, EnumString, EnumIter, AsStaticStr, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, EnumString, EnumIter, AsStaticStr, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub(crate) enum Ordinal {
     Ace = 1,
     Two = 2,
@@ -46,14 +49,14 @@ fn to_int(ordinal: &Ordinal) -> u8 {
     *ordinal as u8
 }
 
-#[derive(Copy, Clone, EnumString, Debug)]
+#[derive(Copy, Clone, EnumString, Debug, Serialize, Deserialize)]
 pub(crate) enum Owner {
     Computer = 1,
     Player = 2,
     Shared = 3,
     Unknown = 4,
 }
-
+#[derive(Serialize, Deserialize)]
 pub(crate) struct Card {
     ordinal: Ordinal,
     rank: i32,  // 1 - 13.  used for runs.
@@ -105,7 +108,7 @@ impl Card {
         }
     }
 
-    pub fn set_owner( &mut self,  owner: Owner) {
+    pub fn set_owner(&mut self, owner: Owner) {
         self.owner = owner;
     }
 
