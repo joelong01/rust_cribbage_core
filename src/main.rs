@@ -17,6 +17,7 @@ use std::io::Read;
 use std::path::*;
 use strum::IntoEnumIterator;
 use toml::*;
+use colored::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct CribbageTest {
@@ -36,7 +37,6 @@ struct TestList {
 }
 
 fn main() {
-    
     let test_file_path = std::path::Path::new("tests/test.toml");
     let mut test_data = match File::open(test_file_path) {
         Ok(f) => f,
@@ -69,14 +69,33 @@ fn run_test(test: &CribbageTest) -> bool {
     let crib_score = score_hand(&crib_hand, &shared_card, true);
     let computer_score = score_hand(&computer_hand, &shared_card, false);
 
+    if player_score - test.player_score == 0 {
+        print!("{}", "PASSED:\t".green());
+    } else {
+        print!("{}","FAILED:\t".red());
+    }
+
     println!(
         "Player Algo Score: {} vs. Hand Score: {}",
         player_score, test.player_score
     );
+
+    if computer_score - test.computer_score == 0 {
+        print!("{}", "PASSED:\t".green());
+    } else {
+        print!("{}","FAILED:\t".red());
+    }
     println!(
         "Computer Algo Score: {} vs. Hand Score: {}",
         computer_score, test.computer_score
     );
+
+    if crib_score - test.crib_score == 0 {
+        print!("{}", "PASSED:\t".green());
+    } else {
+        print!("{}","FAILED:\t".red());
+    }
+
     println!(
         "Crib Algo Score: {} vs. Hand Score: {}",
         crib_score, test.crib_score
