@@ -1,20 +1,33 @@
 #![allow(dead_code)]
 
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 use std::fmt;
-
 use strum::AsStaticRef;
 use strum::IntoEnumIterator;
 use strum_macros::AsStaticStr;
 use strum_macros::EnumIter;
 use strum_macros::EnumString;
-use serde::{Deserialize, Serialize};
-use serde_json::Result;
+
 //
 //  this module has the core abstraction of a card - ordinal, rank, suit, etc.
 //
 
-#[derive(EnumIter, Copy, Clone, AsStaticStr, PartialEq, Debug, Serialize, Deserialize)]
-pub(crate) enum Suit {
+#[derive(
+    Copy,
+    Clone,
+    EnumString,
+    EnumIter,
+    AsStaticStr,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+)]
+pub enum Suit {
     Clubs = 1,
     Diamonds = 2,
     Hearts = 3,
@@ -28,8 +41,21 @@ impl Suit {
     }
 }
 
-#[derive(Copy, Clone, EnumString, EnumIter, AsStaticStr, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub(crate) enum Ordinal {
+#[derive(
+    Copy,
+    Clone,
+    EnumString,
+    EnumIter,
+    AsStaticStr,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+)]
+pub enum Ordinal {
     Ace = 1,
     Two = 2,
     Three = 3,
@@ -50,14 +76,14 @@ fn to_int(ordinal: &Ordinal) -> u8 {
 }
 
 #[derive(Copy, Clone, EnumString, Debug, Serialize, Deserialize)]
-pub(crate) enum Owner {
+pub enum Owner {
     Computer = 1,
     Player = 2,
     Shared = 3,
     Unknown = 4,
 }
-#[derive(Serialize, Deserialize)]
-pub(crate) struct Card {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Card {
     ordinal: Ordinal,
     rank: i32,  // 1 - 13.  used for runs.
     value: i32, // 1 - 10.  used for counting
@@ -90,7 +116,12 @@ impl std::fmt::Display for Card {
 }
 
 impl Card {
-    pub(crate) fn new(ordinal: Ordinal, suit: Suit) -> Self {
+    pub fn name(&self) -> String {
+        let name = format!("{}Of{}", self.ordinal.as_static(), self.suit.as_static());
+        name
+    }
+
+    pub fn new(ordinal: Ordinal, suit: Suit) -> Self {
         let name = format!("{}Of{}", ordinal.as_static(), suit.as_static());
         let rank = ordinal as i32;
         let mut value = rank;
@@ -107,24 +138,46 @@ impl Card {
             name,
         }
     }
+    pub fn from_string(card_as_string: &str) -> Self {
+        let tokens = card_as_string.split("Of").collect::<Vec<_>>();
+        if tokens.len() != 2 {
+            panic!(
+                "\t\t{:?} is an invalid Card because it couldn't be split by 'Of'",
+                card_as_string
+            );
+        }
+        let ordinal: Ordinal = match tokens[0].parse() {
+            Ok(ordinal) => ordinal,
+            Err(_) => {
+                panic!("\t\t\tError Parsing ordinal in: {:?}. {:?} is invalid", card_as_string, tokens[0]);
+            }
+        };
+        let suit: Suit = match tokens[1].parse() {
+            Ok(suit) => suit,
+            Err(_) => panic!(
+                "\t\t\tError Parsing suit in: {:?}. {:?} is invalid",
+                card_as_string, tokens[1]
+            ),
+        };
 
-    pub fn set_owner(&mut self, owner: Owner) {
-        self.owner = owner;
+        Card::new(ordinal, suit)
     }
-
-    pub fn name(&self) -> String {
-        let name = format!("{}Of{}", self.ordinal.as_static(), self.suit.as_static());
-        name
+    pub fn ordinal(&self) -> Ordinal {
+        self.ordinal
     }
 
     pub fn rank(&self) -> i32 {
         self.rank
     }
 
-    pub fn ordinal(&self) -> Ordinal {
-        self.ordinal
+    pub fn set_owner(&mut self, owner: Owner) {
+        self.owner = owner;
     }
     pub fn suit(&self) -> Suit {
         self.suit
+    }
+
+    pub fn value(&self) -> i32 {
+        self.value
     }
 }
