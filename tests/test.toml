@@ -26,7 +26,7 @@ shared_card="KingOfHearts"
 computer_score=4
 player_score=12
 crib_score=8
-name="flush, nibs, 15, double run"
+name="flush, nibs, 15, double run. no flush in crib"
 
 [[tests]]
 player_hand="FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs"
@@ -57,3 +57,4 @@ computer_score=9
 player_score=15
 crib_score=7
 name="player 3 fives and his nibs"
+
