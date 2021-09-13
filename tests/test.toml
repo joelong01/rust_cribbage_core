@@ -39,16 +39,6 @@ crib_score=8
 name="two pair"
 
 [[tests]]
-player_hand="FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs"
-computer_hand="AceOfSpades,FourOfDiamonds,SixOfSpades,JackOfDiamonds"
-crib_hand="AceOfClubs,TwoOfClubs,ThreeOfClubs,FourOfClubs"
-shared_card="FourOfHearts"
-computer_score=6
-player_score=24
-crib_score=10
-name="two pair, many 15s, double run of 4"
-
-[[tests]]
 player_hand="FiveOfHearts,FiveOfClubs,FourOfSpades,JackOfDiamonds"
 computer_hand="AceOfSpades,FourOfDiamonds,SixOfSpades,JackOfHearts"
 crib_hand="AceOfClubs,TwoOfClubs,ThreeOfClubs,FourOfClubs"
