@@ -65,9 +65,9 @@ fn run_test(test: &CribbageTest) -> bool {
     let crib_hand = parse_toml_hand(&test.crib_hand);
     println!("\nTest Name: {}", test.name);
     let shared_card = Card::from_string(&test.shared_card);
-    let player_score = score_hand(&player_hand, &shared_card, false);
-    let crib_score = score_hand(&crib_hand, &shared_card, true);
-    let computer_score = score_hand(&computer_hand, &shared_card, false);
+    let player_score = score_hand(&player_hand,Some(&shared_card), false);
+    let crib_score = score_hand(&crib_hand, Some(&shared_card), true);
+    let computer_score = score_hand(&computer_hand, Some(&shared_card), false);
 
     if player_score - test.player_score == 0 {
         print!("{}", "PASSED:\t".green());
@@ -217,6 +217,6 @@ fn old_main() {
     }
     println!("\n");
 
-    let player_score = score_hand(&player_hand[0..4], &shared_card, false);
+    let player_score = score_hand(&player_hand[0..4], Some(&shared_card), false);
     println!("PlayerScore is: {}", player_score);
 }

@@ -3,11 +3,14 @@ use arrayvec::IntoIter;
 use itertools::*;
 use std::convert::TryInto;
 
-pub fn score_hand(hand: &[Card], shared_card: &Card, is_crib: bool) -> i32 {
+pub fn score_hand(hand: &[Card], shared_card: Option<&Card>, is_crib: bool) -> i32 {
     let mut local_score = score_nibs(hand, shared_card);
 
     let mut local_hand: Vec<Card> = hand.to_vec();
-    local_hand.push(shared_card.clone());
+
+    if shared_card.is_some() {
+        local_hand.push(shared_card.unwrap().clone());
+    }
 
     local_score += score_flush(&local_hand, is_crib);
 
@@ -33,12 +36,14 @@ fn score_same_kind(hand: &[Card]) -> i32 {
     local_score
 }
 
-fn score_nibs(hand: &[Card], shared_card: &Card) -> i32 {
-    if hand
-        .iter()
-        .any(|card| card.suit() == shared_card.suit() && card.ordinal() == Ordinal::Jack)
-    {
-        return 1;
+fn score_nibs(hand: &[Card], shared_card: Option<&Card>) -> i32 {
+    if shared_card.is_some() {
+        if hand
+            .iter()
+            .any(|card| card.suit() == shared_card.unwrap().suit() && card.ordinal() == Ordinal::Jack)
+        {
+            return 1;
+        }
     }
 
     0
