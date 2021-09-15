@@ -181,3 +181,11 @@ impl Card {
         self.value
     }
 }
+
+macro_rules! card {
+        ($ordinal:expr, $suit:expr) => {
+            {
+                Card::new($ordinal, $suit)
+            }
+        };
+    }
