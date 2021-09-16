@@ -134,63 +134,78 @@ fn score_flush(hand: &[Card], is_crib: bool) -> i32 {
 #[cfg(test)]
 mod tests {
     use crate::game::cards::{Card, Ordinal::*, Suit as Of};
-    use rstest::rstest;
+    use card as c;
+    
+    macro_rules! test_case {(
+        $name:ident,
+        $player_hand:expr,
+        $computer_hand:expr,
+        $crib_hand:expr,
+        $shared_card:expr,
+        $expected_player_score:literal,
+        $expected_computer_score:literal,
+        $expected_crib_score:literal
+     ) => {
+            #[test]
+            fn $name() {
+                let player_score = super::score_hand(&$player_hand, &$shared_card, false);
+                let crib_score = super::score_hand(&$crib_hand, &$shared_card, true);
+                let computer_score = super::score_hand(&$computer_hand, &$shared_card, false);
 
-    #[rstest]
-    #[case::player_3_fives_and_a_jack_cut_the_5(
-    vec![card!(Five, Of::Hearts), card!(Five, Of::Clubs), card!(Five, Of::Spades), card!(Jack, Of::Diamonds)],
-    vec![card!(Ace, Of::Spades), card!(Four, Of::Diamonds), card!(Six, Of::Spades), card!(Jack, Of::Hearts)],
-    vec![card!(Ace, Of::Clubs), card!(Two, Of::Clubs), card!(Three, Of::Clubs), card!(Four, Of::Clubs)],
-    card!(Five, Of::Diamonds),
-    29,
-    9,
-    7)]
-    #[case::two_pair_many_15s_double_run_of_4(
-    vec![card!(Five, Of::Hearts), card!(Five, Of::Clubs), card!(Six, Of::Hearts), card!(Six, Of::Clubs)],
-    vec![card!(Ace, Of::Spades), card!(Four, Of::Diamonds), card!(Six, Of::Spades), card!(Jack, Of::Diamonds)],
-    vec![card!(Ace, Of::Clubs), card!(Two, Of::Clubs), card!(Three, Of::Clubs), card!(Four, Of::Clubs)],
-    card!(Four, Of::Hearts),
-    24,
-    6,
-    10)]
-    #[case::flush_nibs_15_double_run_no_flush_in_crib(
-    vec![card!(Five, Of::Hearts), card!(Six, Of::Clubs), card!(Seven, Of::Hearts), card!(Jack, Of::Hearts)],
-    vec![card!(Ace, Of::Spades), card!(Four, Of::Diamonds), card!(Six, Of::Spades), card!(Jack, Of::Diamonds)],
-    vec![card!(Ace, Of::Clubs), card!(Two, Of::Clubs), card!(Three, Of::Clubs), card!(Four, Of::Clubs)],
-    card!(King, Of::Hearts),
-    12,
-    4,
-    8)]
-    #[case::two_pair(
-    vec![card!(Five, Of::Hearts), card!(Five, Of::Clubs), card!(Six, Of::Hearts), card!(Six, Of::Clubs)],
-    vec![card!(Ace, Of::Spades), card!(Four, Of::Diamonds), card!(Six, Of::Spades), card!(Jack, Of::Diamonds)],
-    vec![card!(Ace, Of::Clubs), card!(Two, Of::Clubs), card!(Three, Of::Clubs), card!(Four, Of::Clubs)],
-    card!(King, Of::Diamonds),
-    8,
-    5,
-    8)]
-    #[case::player_3_fives_and_his_nibs(
-    vec![card!(Five, Of::Hearts), card!(Five, Of::Clubs), card!(Four, Of::Spades), card!(Jack, Of::Diamonds)],
-    vec![card!(Ace, Of::Spades), card!(Four, Of::Diamonds), card!(Six, Of::Spades), card!(Jack, Of::Hearts)],
-    vec![card!(Ace, Of::Clubs), card!(Two, Of::Clubs), card!(Three, Of::Clubs), card!(Four, Of::Clubs)],
-    card!(Five, Of::Diamonds),
-    15,
-    9,
-    7)]
-    pub fn test_scoring_combination(
-        #[case] player_hand: Vec<Card>,
-        #[case] computer_hand: Vec<Card>,
-        #[case] crib_hand: Vec<Card>,
-        #[case] shared_card: Card,
-        #[case] expected_player_score: i32,
-        #[case] expected_computer_score: i32,
-        #[case] expected_crib_score: i32)  {
-        let player_score = super::score_hand(&player_hand, &shared_card, false);
-        let crib_score = super::score_hand(&crib_hand, &shared_card, true);
-        let computer_score = super::score_hand(&computer_hand, &shared_card, false);
-
-        assert_eq!(expected_player_score, player_score, "Player Algo Score: {} vs. Hand Score: {}", player_score, expected_player_score);
-        assert_eq!(expected_computer_score, computer_score, "Computer Algo Score: {} vs. Hand Score: {}", computer_score, expected_computer_score);
-        assert_eq!(expected_crib_score, crib_score, "Crib Algo Score: {} vs. Hand Score: {}", crib_score, expected_crib_score);
+                assert_eq!($expected_player_score, player_score, "Player Algo Score: {} vs. Hand Score: {}", player_score, $expected_player_score);
+                assert_eq!($expected_computer_score, computer_score, "Computer Algo Score: {} vs. Hand Score: {}", computer_score, $expected_computer_score);
+                assert_eq!($expected_crib_score, crib_score, "Crib Algo Score: {} vs. Hand Score: {}", crib_score, $expected_crib_score);
+            }
+        }
     }
+
+    test_case!(player_3_fives_and_a_jack_cut_the_5,
+        [c!(Five, Of::Hearts), c!(Five, Of::Clubs), c!(Five, Of::Spades), c!(Jack, Of::Diamonds)],
+        [c!(Ace, Of::Spades), c!(Four, Of::Diamonds), c!(Six, Of::Spades), c!(Jack, Of::Hearts)],
+        [c!(Ace, Of::Clubs), c!(Two, Of::Clubs), c!(Three, Of::Clubs), c!(Four, Of::Clubs)],
+        c!(Five, Of::Diamonds),
+        29,
+        9,
+        7
+    );
+
+    test_case!(two_pair_many_15s_double_run_of_4,
+        [c!(Five, Of::Hearts), c!(Five, Of::Clubs), c!(Six, Of::Hearts), c!(Six, Of::Clubs)],
+        [c!(Ace, Of::Spades), c!(Four, Of::Diamonds), c!(Six, Of::Spades), c!(Jack, Of::Diamonds)],
+        [c!(Ace, Of::Clubs), c!(Two, Of::Clubs), c!(Three, Of::Clubs), c!(Four, Of::Clubs)],
+        c!(Four, Of::Hearts),
+        24,
+        6,
+        10
+    );
+
+    test_case!(flush_nibs_15_double_run_no_flush_in_crib,
+        [c!(Five, Of::Hearts), c!(Six, Of::Clubs), c!(Seven, Of::Hearts), c!(Jack, Of::Hearts)],
+        [c!(Ace, Of::Spades), c!(Four, Of::Diamonds), c!(Six, Of::Spades), c!(Jack, Of::Diamonds)],
+        [c!(Ace, Of::Clubs), c!(Two, Of::Clubs), c!(Three, Of::Clubs), c!(Four, Of::Clubs)],
+        c!(King, Of::Hearts),
+        12,
+        4,
+        8
+    );
+
+    test_case!(two_pair,
+        [c!(Five, Of::Hearts), c!(Five, Of::Clubs), c!(Six, Of::Hearts), c!(Six, Of::Clubs)],
+        [c!(Ace, Of::Spades), c!(Four, Of::Diamonds), c!(Six, Of::Spades), c!(Jack, Of::Diamonds)],
+        [c!(Ace, Of::Clubs), c!(Two, Of::Clubs), c!(Three, Of::Clubs), c!(Four, Of::Clubs)],
+        c!(King, Of::Diamonds),
+        8,
+        5,
+        8
+    );
+
+    test_case!(player_3_fives_and_his_nibs,
+        [c!(Five, Of::Hearts), c!(Five, Of::Clubs), c!(Four, Of::Spades), c!(Jack, Of::Diamonds)],
+        [c!(Ace, Of::Spades), c!(Four, Of::Diamonds), c!(Six, Of::Spades), c!(Jack, Of::Hearts)],
+        [c!(Ace, Of::Clubs), c!(Two, Of::Clubs), c!(Three, Of::Clubs), c!(Four, Of::Clubs)],
+        c!(Five, Of::Diamonds),
+        15,
+        9,
+        7
+    );
 }

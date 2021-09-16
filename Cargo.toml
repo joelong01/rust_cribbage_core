@@ -13,6 +13,3 @@ rand= "0.8.4"
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json= "1.0.67"
 itertools= "0.10"
-
-[dev-dependencies]
-rstest = "0.11.0"
