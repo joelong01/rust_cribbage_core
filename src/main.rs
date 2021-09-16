@@ -4,114 +4,15 @@
 use arrayvec::ArrayVec;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
-use toml::value::Array;
 mod game;
 use crate::game::cards::*;
 use crate::game::scoring::score_hand;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
-use std::fmt::Error;
-use std::fs::File;
-use std::io::Read;
-use std::path::*;
 use strum::IntoEnumIterator;
-use toml::*;
-use colored::*;
-
-#[derive(Serialize, Deserialize, Debug)]
-struct CribbageTest {
-    player_hand: String,
-    computer_hand: String,
-    shared_card: String,
-    crib_hand: String,
-    player_score: i32,
-    computer_score: i32,
-    crib_score: i32,
-    name: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct TestList {
-    tests: Vec<CribbageTest>,
-}
 
 fn main() {
-    let test_file_path = std::path::Path::new("tests/test.toml");
-    let mut test_data = match File::open(test_file_path) {
-        Ok(f) => f,
-        Err(e) => panic!("test file not found: {}", e),
-    };
 
-    let mut toml_string = String::new();
-    match test_data.read_to_string(&mut &mut toml_string) {
-        Ok(s) => s,
-        Err(e) => panic!("Error Reading file: {}", e),
-    };
-    println!("Test File {}", toml_string);
-
-    let test_list: TestList = from_str(&toml_string).unwrap();
-
-    println!("you have {} tests", test_list.tests.len());
-
-    for (_, test) in test_list.tests.iter().enumerate() {
-        run_test(test);
-    }
-}
-
-fn run_test(test: &CribbageTest) -> bool {
-    let player_hand = parse_toml_hand(&test.player_hand);
-    let computer_hand = parse_toml_hand(&test.computer_hand);
-    let crib_hand = parse_toml_hand(&test.crib_hand);
-    println!("\nTest Name: {}", test.name);
-    let shared_card = Card::from_string(&test.shared_card);
-    let player_score = score_hand(&player_hand, &shared_card, false);
-    let crib_score = score_hand(&crib_hand, &shared_card, true);
-    let computer_score = score_hand(&computer_hand, &shared_card, false);
-
-    if player_score - test.player_score == 0 {
-        print!("{}", "PASSED:\t".green());
-    } else {
-        print!("{}","FAILED:\t".red());
-    }
-
-    println!(
-        "Player Algo Score: {} vs. Hand Score: {}",
-        player_score, test.player_score
-    );
-
-    if computer_score - test.computer_score == 0 {
-        print!("{}", "PASSED:\t".green());
-    } else {
-        print!("{}","FAILED:\t".red());
-    }
-    println!(
-        "Computer Algo Score: {} vs. Hand Score: {}",
-        computer_score, test.computer_score
-    );
-
-    if crib_score - test.crib_score == 0 {
-        print!("{}", "PASSED:\t".green());
-    } else {
-        print!("{}","FAILED:\t".red());
-    }
-
-    println!(
-        "Crib Algo Score: {} vs. Hand Score: {}",
-        crib_score, test.crib_score
-    );
-
-    false
-}
-
-fn parse_toml_hand(hand_as_string: &str) -> Vec<Card> {
-    let mut hand: Vec<Card> = Vec::new();
-
-    for card_name in hand_as_string.split(',') {
-        hand.push(Card::from_string(card_name));
-    }
-
-    hand
 }
 
 fn serialize_hand(hand: &[Card]) -> String {
