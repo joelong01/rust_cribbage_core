@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 use std::fmt;
 use strum::AsStaticRef;
 use strum::IntoEnumIterator;
@@ -181,7 +180,7 @@ impl Card {
         self.value
     }
 }
-
+#[allow(unused_macros)]
 macro_rules! card {
         ($ordinal:expr, $suit:expr) => {
             {
@@ -189,3 +188,4 @@ macro_rules! card {
             }
         };
     }
+ 
