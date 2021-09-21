@@ -118,6 +118,6 @@ fn old_main() {
     }
     println!("\n");
 
-    let player_score = score_hand(&player_hand[0..4], &shared_card, false);
+    let player_score = score_hand(&player_hand[0..4], Some(&shared_card), false);
     println!("PlayerScore is: {}", player_score);
 }

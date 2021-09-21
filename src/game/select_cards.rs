@@ -10,8 +10,7 @@ use itertools::Itertools;
 pub fn select_crib_cards(hand: &[Card], is_my_crib: bool) -> Vec<Card>{
 
     // get all possible hands
-    let local_hand = hand.to_vec();
-    let potential_hands = local_hand.into_iter().combinations(4);
+    let potential_hands = hand.to_vec().into_iter().combinations(4);
     let mut max_crib = Vec::<Card>::new();
     let mut max_score = -1000;
     

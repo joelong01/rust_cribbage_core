@@ -1,6 +1,5 @@
 use crate::game::cards::*;
-use arrayvec::IntoIter;
-use itertools::*;
+use itertools::Itertools;
 use std::convert::TryInto;
 
 pub fn score_hand(hand: &[Card], shared_card: Option<&Card>, is_crib: bool) -> i32 {
@@ -153,9 +152,9 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
-                let player_score = super::score_hand(&$player_hand, &$shared_card, false);
-                let crib_score = super::score_hand(&$crib_hand, &$shared_card, true);
-                let computer_score = super::score_hand(&$computer_hand, &$shared_card, false);
+                let player_score = super::score_hand(&$player_hand, Some(&$shared_card), false);
+                let crib_score = super::score_hand(&$crib_hand, Some(&$shared_card), true);
+                let computer_score = super::score_hand(&$computer_hand, Some(&$shared_card), false);
 
                 assert_eq!($expected_player_score, player_score, "Player Algo Score: {} vs. Hand Score: {}", player_score, $expected_player_score);
                 assert_eq!($expected_computer_score, computer_score, "Computer Algo Score: {} vs. Hand Score: {}", computer_score, $expected_computer_score);
