@@ -1,6 +1,5 @@
-
 //! `score` provides a functional approach to tallying the score for a
-//! cribbage hand. 
+//! cribbage hand.
 
 #![allow(unused_imports)]
 use std::cmp::Ordering;
@@ -18,7 +17,6 @@ pub enum CombinationKind {
     Run,
     SuitMatch,
 }
-
 
 /// Some cribbage scoring combinations have specific names
 /// depending on how many cards are involved.
@@ -51,8 +49,8 @@ pub struct Combination {
 /// returns the sume of the points of the `combinations`.
 #[derive(Clone, Debug)]
 pub struct Score {
-    combinations: Vec<Combination>,
-    total_score: u32 // convinient sum of all combinations.score
+    pub combinations: Vec<Combination>,
+    pub total_score: u32, // convinient sum of all combinations.score
 }
 
 /// Calculates the score for a `hand` of four cribbage cards and the `starter`.
@@ -61,16 +59,21 @@ pub struct Score {
 ///
 /// * `hand` has four unique and valid cards
 /// * `starter` is a valid `Card` that is unique when combined with `hand`
-pub fn score_hand(hand: Hand, starter: Card, is_crib: bool) -> Score {
+/// * This is also used when picking a hand, in which case 4 cards are passed in without a starter
+//  *
+pub fn score_hand(hand: Hand, starter: Option<Card>, is_crib: bool) -> Score {
     let mut vector = hand.clone();
-    vector.push(starter);
+    let mut s:Score = Score::new();
+    if let Some(starter) = starter {
+        vector.push(starter);
+        s = nob_score(hand, starter);
+    }
     vector.sort(); // ordered by rank rirst
 
-    let s = nob_score(hand, starter);
+    
     all_combinations_of_min_size(vector, 2)
         .filter_map(|cards| score(cards, is_crib))
         .fold(s, |mut score, combis| tally(&mut score, combis))
-
 }
 
 /// A Nob is scored if a Jack in the `hand` matches the suit of the `starter`.
@@ -89,17 +92,24 @@ pub fn nob_score(hand: Hand, starter: Card) -> Score {
     score
 }
 
-
 /// `score` evaluates `cards` against each of the cribbage hand scoring
 /// combinations and returns all scoring combinations that are
 /// identified.
 pub fn score(cards: Vec<Card>, is_crib: bool) -> Option<Vec<Combination>> {
     let mut combis = Vec::new();
 
-    if let Some(c) = score_fifteen(cards.clone()) { combis.push(c) }
-    if let Some(c) = score_pair(cards.clone()) { combis.push(c) }
-    if let Some(c) = score_run(cards.clone()) { combis.push(c) }
-    if let Some(c) = score_flush(cards, is_crib) { combis.push(c) }
+    if let Some(c) = score_fifteen(cards.clone()) {
+        combis.push(c)
+    }
+    if let Some(c) = score_pair(cards.clone()) {
+        combis.push(c)
+    }
+    if let Some(c) = score_run(cards.clone()) {
+        combis.push(c)
+    }
+    if let Some(c) = score_flush(cards, is_crib) {
+        combis.push(c)
+    }
     match combis.len() {
         0 => None,
         _ => Some(combis),
@@ -112,10 +122,9 @@ pub fn score(cards: Vec<Card>, is_crib: bool) -> Option<Vec<Combination>> {
 pub fn tally(score: &mut Score, combis: Vec<Combination>) -> Score {
     for c in combis {
         score.add_combination(c);
-        
     }
     score.total_score = score.combinations.iter().map(|combi| combi.points).sum();
-    
+
     score.clone()
 }
 
@@ -190,7 +199,7 @@ impl Score {
     fn new() -> Score {
         Score {
             combinations: Vec::new(),
-            total_score: 0
+            total_score: 0,
         }
     }
 
@@ -226,20 +235,14 @@ impl Score {
                                     Some(c.clone())
                                 }
                             }
-                            CombinationKind::Run => {
-                                match c.points.cmp(&combi.points){
-                                    Ordering::Greater => {
-                                        subsumed = true;
-                                        Some(c.clone())
-                                    }
-                                    Ordering::Equal => {
-                                        Some(c.clone())
-                                    }
-                                    Ordering::Less => {
-                                        None
-                                    }
-                                }                                
-                            }
+                            CombinationKind::Run => match c.points.cmp(&combi.points) {
+                                Ordering::Greater => {
+                                    subsumed = true;
+                                    Some(c.clone())
+                                }
+                                Ordering::Equal => Some(c.clone()),
+                                Ordering::Less => None,
+                            },
                             CombinationKind::SuitMatch => {
                                 if c.points > combi.points {
                                     subsumed = true;
@@ -344,10 +347,10 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
-
-                let player_score = super::score_hand((&$player_hand).to_vec(), $shared_card, false);
-                let crib_score = super::score_hand((&$crib_hand).to_vec(), $shared_card, true);
-                let computer_score = super::score_hand((&$computer_hand).to_vec(), $shared_card, false);
+                let player_score = super::score_hand((&$player_hand).to_vec(), Some($shared_card), false);
+                let crib_score = super::score_hand((&$crib_hand).to_vec(), Some($shared_card), true);
+                let computer_score =
+                    super::score_hand((&$computer_hand).to_vec(), Some($shared_card), false);
 
                 assert_eq!(
                     $expected_player_score, player_score.total_score,
@@ -601,5 +604,4 @@ mod tests {
         0,
         4
     );
-    
 }

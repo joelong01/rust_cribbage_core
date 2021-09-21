@@ -7,7 +7,6 @@
 #![allow(clippy::redundant_field_names)]
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 use strum_macros::EnumIter;
@@ -127,9 +126,8 @@ impl Card {
 
     pub fn new(rank: Rank, suit: Suit) -> Card {
         Card {
-            suit: suit,
-            rank: rank,
-
+            suit,
+            rank,
             value: match rank {
                 Rank::Unknown => 0,
                 Rank::Ace => 1,
@@ -174,7 +172,7 @@ impl Card {
 }
 #[allow(unused_macros)]
 macro_rules! card {
-    ($ordinal:expr, $suit:expr) => {{
-        Card::new($ordinal, $suit)
+    ($rank:expr, $suit:expr) => {{
+        Card::new($rank, $suit)
     }};
 }

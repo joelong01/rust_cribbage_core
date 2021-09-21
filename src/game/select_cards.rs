@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use crate::game::cards::*;
 use crate::game::scoring::*;
 use itertools::Itertools;
@@ -7,27 +8,20 @@ use itertools::Itertools;
  * that will perform best based on the value of the hand plus
  * or minus the value of the crib
  */
-pub fn select_crib_cards(hand: &[Card], is_my_crib: bool) -> Vec<Card>{
+pub fn select_crib_cards(hand: &[Card], _: bool) -> Vec<Card>{
 
     // get all possible hands
     let potential_hands = hand.to_vec().into_iter().combinations(4);
     let mut max_crib = Vec::<Card>::new();
-    let mut max_score = -1000;
+    let mut max_score:i32 = -1000;
     
     for h in potential_hands {
 
         // get the score for the current hand we are evaluating
-        let mut score = score_hand(hand, None, false);
+        let score:i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
         let crib = get_crib_cards(hand, &h);
 
-        if is_my_crib {
             // TODO: implement CardScoring.getCardValueToYourCrib
-            score = 1;
-        }
-        else {
-            // TODO: implement CardScoring.getCardValueToYourCrib
-            score = -2000;
-        }
 
         if score > max_score {
             max_score = score;
@@ -35,7 +29,7 @@ pub fn select_crib_cards(hand: &[Card], is_my_crib: bool) -> Vec<Card>{
         }
     }
 
-    return max_crib;
+    max_crib
 }
 
 /**
@@ -48,16 +42,16 @@ fn get_crib_cards(hand: &[Card], held_cards: &[Card]) -> Vec<Card> {
     let mut send_to_crib = Vec::<Card>::new();
 
     for h in local_hand.iter() {
-        if !held_cards.contains(&h) {
-            send_to_crib.push(h.clone());
+        if !held_cards.contains(h) {
+            send_to_crib.push(*h);
         }
     }
-
-    return send_to_crib;
+    send_to_crib
 }
 
 mod tests {
     // import names from outer scope
+    
     use super::*;
 
     #[test]
