@@ -86,28 +86,17 @@ pub fn nob_score(hand: Hand, starter: Card) -> Score {
     }
     score
 }
-#[allow(clippy::single_match)]
+
 /// `score` evaluates `cards` against each of the cribbage hand scoring
 /// combinations and returns all scoring combinations that are
 /// identified.
 pub fn score(cards: Vec<Card>, is_crib: bool) -> Option<Vec<Combination>> {
     let mut combis = Vec::new();
-    match score_fifteen(cards.clone()) {
-        Some(c) => combis.push(c),
-        None => (),
-    }
-    match score_pair(cards.clone()) {
-        Some(c) => combis.push(c),
-        None => (),
-    }
-    match score_run(cards.clone()) {
-        Some(c) => combis.push(c),
-        None => (),
-    }
-    match score_flush(cards, is_crib) {
-        Some(c) => combis.push(c),
-        None => (),
-    }
+
+    if let Some(c) = score_fifteen(cards.clone()) { combis.push(c) }
+    if let Some(c) = score_pair(cards.clone()) { combis.push(c) }
+    if let Some(c) = score_run(cards.clone()) { combis.push(c) }
+    if let Some(c) = score_flush(cards, is_crib) { combis.push(c) }
     match combis.len() {
         0 => None,
         _ => Some(combis),
@@ -608,4 +597,5 @@ mod tests {
         0,
         4
     );
+    
 }
