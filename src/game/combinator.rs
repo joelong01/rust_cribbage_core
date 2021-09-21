@@ -34,7 +34,6 @@ struct BitMaskCombinator<T: Copy> {
     vec: Vec<T>,
 }
 
-#[allow(dead_code)]
 /// Returns an iterator that lazily iterates over all unique combinations
 /// of elements in `vector` with no attempt at specific ordering of the
 /// combinations
@@ -90,7 +89,6 @@ pub fn all_combinations_of_max_size<T: Copy>(
     }
 }
 
-#[allow(dead_code)]
 /// Returns an iterator that lazily iterates over all unique combinations
 /// of elements in `vector` with at least `min` elements, no more than
 /// `max` elements, and no attempt at specific ordering of the combinations
