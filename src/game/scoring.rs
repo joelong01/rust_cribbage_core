@@ -1,137 +1,342 @@
-use crate::game::cards::*;
-use itertools::*;
-use std::convert::TryInto;
+//! `score` provides a functional approach to tallying the score for a
+//! cribbage hand. It does not currently differentiate between dealer, player,
+//! and crib.
+#![allow(unused_imports)]
+use std::cmp::Ordering;
+use std::sync::mpsc::RecvTimeoutError;
 
-pub fn score_hand(hand: &[Card], shared_card: &Card, is_crib: bool) -> i32 {
-    let mut local_score = score_nibs(hand, shared_card);
+use crate::game::cards::{Card, Hand, Rank, Suit};
+use crate::game::combinator::all_combinations_of_min_size;
 
-    let mut local_hand: Vec<Card> = hand.to_vec();
-    local_hand.push(shared_card.clone());
-
-    local_score += score_flush(&local_hand, is_crib);
-
-    local_hand.sort_by_key(|c| c.rank());
-
-    local_score += score_fifteens(&local_hand);
-
-    local_score += score_runs(&local_hand);
-
-    local_score += score_same_kind(&local_hand);
-
-    local_score
+/// Cribbage has five basic hand scoring combinations.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum CombinationKind {
+    Nob,
+    Fifteen,
+    RankMatch,
+    Run,
+    SuitMatch,
 }
 
-fn score_same_kind(hand: &[Card]) -> i32 {
-    let mut local_score = 0;
-    for cards in hand.iter().combinations(2).into_iter() {
-        if cards[0].ordinal() == cards[1].ordinal() {
-            local_score += 2;
+/// Some cribbage scoring combinations have specific names
+/// depending on how many cards are involved.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub enum CombinationName {
+    Nob,
+    Fifteen,
+    Pair,
+    RunOfThree,
+    RunOfFour,
+    FlushOfFour,
+    RunOfFive,
+    FlushOfFive,
+    RoyalPair,
+    DoubleRoyalPair,
+}
+
+/// `Combination` is a record of a single scoring combination of cards.
+#[derive(Clone, Debug)]
+pub struct Combination {
+    kind: CombinationKind,
+    name: CombinationName,
+    cards: Vec<Card>,
+    rank_info: Rank, // convenience field for pairs
+    suit_info: Suit, // convenience field for flushes
+    points: u32,
+}
+
+/// `Score` holds a collection of scoring combinations. `score.points()`
+/// returns the sume of the points of the `combinations`.
+#[derive(Clone, Debug)]
+pub struct Score {
+    combinations: Vec<Combination>,
+    total_score: u32 // convinient sum of all combinations.score
+}
+
+/// Calculates the score for a `hand` of four cribbage cards and the `starter`.
+///
+/// # Assumptions
+///
+/// * `hand` has four unique and valid cards
+/// * `starter` is a valid `Card` that is unique when combined with `hand`
+pub fn score_hand(hand: Hand, starter: Card, is_crib: bool) -> Score {
+    let mut vector = hand.clone();
+    vector.push(starter);
+    vector.sort(); // ordered by rank rirst
+
+    let s = nob_score(hand, starter);
+    all_combinations_of_min_size(vector, 2)
+        .filter_map(|cards| score(cards, is_crib))
+        .fold(s, |mut score, combis| tally(&mut score, combis))
+
+}
+
+/// A Nob is scored if a Jack in the `hand` matches the suit of the `starter`.
+///
+/// # Returns
+///
+/// An empty `Score` or a `Score` that contains a single `Nob` `Combination`
+pub fn nob_score(hand: Hand, starter: Card) -> Score {
+    let mut score = Score::new();
+    for c in hand {
+        if c.rank == Rank::Jack && c.suit == starter.suit {
+            score.add_combination(Combination::new(CombinationKind::Nob, vec![c, starter]));
+            return score;
+        };
+    }
+    score
+}
+#[allow(clippy::single_match)]
+/// `score` evaluates `cards` against each of the cribbage hand scoring
+/// combinations and returns all scoring combinations that are
+/// identified.
+pub fn score(cards: Vec<Card>, is_crib: bool) -> Option<Vec<Combination>> {
+    let mut combis = Vec::new();
+    match score_fifteen(cards.clone()) {
+        Some(c) => combis.push(c),
+        None => (),
+    }
+    match score_pair(cards.clone()) {
+        Some(c) => combis.push(c),
+        None => (),
+    }
+    match score_run(cards.clone()) {
+        Some(c) => combis.push(c),
+        None => (),
+    }
+    match score_flush(cards, is_crib) {
+        Some(c) => combis.push(c),
+        None => (),
+    }
+    match combis.len() {
+        0 => None,
+        _ => Some(combis),
+    }
+}
+
+/// `tally` adds the `Combination`s in `combis` to `score` one at a time,
+/// so that combinations that are subsumed by other combinations are
+/// handled correctly.
+pub fn tally(score: &mut Score, combis: Vec<Combination>) -> Score {
+    for c in combis {
+        score.add_combination(c);
+        
+    }
+    score.total_score = score.combinations.iter().map(|combi| combi.points).sum();
+    
+    score.clone()
+}
+
+/// If the values of the `cards` sum to 15, returns a `Fifteen` `Combination`
+fn score_fifteen(cards: Vec<Card>) -> Option<Combination> {
+    match cards.iter().fold(0, |s, c| s + c.value) {
+        15 => Some(Combination::new(CombinationKind::Fifteen, cards)),
+        _ => None,
+    }
+}
+
+/// If all of the `cards` share the same `Rank`, returns a `Pair`
+/// `Combination`
+fn score_pair(cards: Vec<Card>) -> Option<Combination> {
+    let len = cards.len();
+    if len < 2 {
+        None
+    } else {
+        let rank = cards[0].rank;
+        match cards.iter().all(|c| c.rank == rank) {
+            true => Some(Combination::new(CombinationKind::RankMatch, cards)),
+            false => None,
+        }
+    }
+}
+
+/// If `cards` has at least three cards, and they form a contiguous run of
+/// sequential `Rank`s, returns a `Run` `Combination`
+fn score_run(cards: Vec<Card>) -> Option<Combination> {
+    if cards.len() < 3 {
+        None
+    } else {
+        let first_rank = cards[0].rank as usize;
+        match cards
+            .iter()
+            .map(|c| c.rank as usize - first_rank)
+            .eq(0..cards.len())
+        {
+            true => Some(Combination::new(CombinationKind::Run, cards)),
+            false => None,
+        }
+    }
+}
+
+/// If `cards` has at least four cards and they all share a `Suit`, returns
+/// a `Flush` `Combination`.  a crib has to have 5 cards of the same suit,
+/// a regular hand can have only 4
+fn score_flush(cards: Vec<Card>, is_crib: bool) -> Option<Combination> {
+    let len = cards.len();
+
+    match len {
+        1..=3 => {
+            return None;
+        }
+        4 => {
+            if is_crib {
+                return None;
+            }
+        }
+        _ => {}
+    }
+
+    let suit = cards[0].suit;
+    match cards.iter().all(|c| c.suit == suit) {
+        true => Some(Combination::new(CombinationKind::SuitMatch, cards)),
+        false => None,
+    }
+}
+
+impl Score {
+    /// Returns an empty score with no `Combination`s
+    fn new() -> Score {
+        Score {
+            combinations: Vec::new(),
+            total_score: 0
         }
     }
 
-    local_score
-}
-
-fn score_nibs(hand: &[Card], shared_card: &Card) -> i32 {
-    if hand
-        .iter()
-        .any(|card| card.suit() == shared_card.suit() && card.ordinal() == Ordinal::Jack)
-    {
-        return 1;
+    /// Returns the sum of the points associated with the `combinations`
+    pub fn points(self) -> u32 {
+        self.combinations.iter().fold(0, |p, c| p + c.points)
     }
 
-    0
-}
-
-fn is_run(hand: &[Card]) -> bool {
-    hand.iter()
-        .map(|c| c.ordinal() as usize - hand[0].ordinal() as usize)
-        .eq(0..hand.len())
-}
-
-fn is_run_by_ref(hand: &[&Card]) -> bool {
-    hand.iter()
-        .map(|c| c.ordinal() as usize - hand[0].ordinal() as usize)
-        .eq(0..hand.len())
-}
-
-fn score_runs(hand: &[Card]) -> i32 {
-    //
-    //  first check if the whole thing is a run
-    if is_run(hand) {
-        return hand.len().try_into().unwrap();
-    }
-
-    //
-    //  now look for 3 or 4 card runs - you can have 2 four card runs
-    //  but you can't have both a 4 card run and a 3 card run (3+4=7)
-    let mut local_score: i32 = 0;
-
-    let mut combi = hand.iter().combinations(4);
-    for cards in combi.into_iter() {
-        if is_run_by_ref(&cards) {
-            local_score += 4;
-        }
-    }
-
-    if local_score > 0 {
-        return local_score;
-    }
-
-    //
-    //  now look for 3 card runs
-    //  you can have multiple of these (up to 4)
-    combi = hand.iter().combinations(3);
-    for cards in combi.into_iter() {
-        if is_run_by_ref(&cards) {
-            local_score += 3;
-        }
-    }
-
-    local_score
-}
-
-fn score_fifteens(hand: &[Card]) -> i32 {
-    let mut local_score: i32 = 0;
-    let total: i32 = hand.iter().map(|x| x.value() as i32).sum();
-    if total == 15 {
-        local_score = 2;
-    }
-    for length in 2..hand.len() {
-        let comb = hand.iter().combinations(length);
-        for set in comb.into_iter() {
-            let sum: i32 = set.iter().map(|x| x.value() as i32).sum();
-            if sum == 15 {
-                local_score += 2;
+    /// `add_combination` adds `combi` to the score, unless it would be
+    /// subsumed by a `Combination` already in `combinations`. If `combi`
+    /// subsumes a `Combination` that is already in `combinations`, `combi`
+    /// replaces it.
+    fn add_combination(&mut self, combi: Combination) {
+        match combi.kind {
+            CombinationKind::Nob | CombinationKind::Fifteen => self.combinations.push(combi),
+            _ => {
+                let mut subsumed = false;
+                self.combinations = self
+                    .combinations
+                    .iter()
+                    .filter_map(|c| match c.kind == combi.kind {
+                        false => Some(c.clone()),
+                        true => match c.kind {
+                            CombinationKind::RankMatch => {
+                                if c.rank_info == combi.rank_info {
+                                    if c.points >= combi.points {
+                                        subsumed = true;
+                                        Some(c.clone())
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    Some(c.clone())
+                                }
+                            }
+                            CombinationKind::Run => {
+                                match c.points.cmp(&combi.points){
+                                    Ordering::Greater => {
+                                        subsumed = true;
+                                        Some(c.clone())
+                                    }
+                                    Ordering::Equal => {
+                                        Some(c.clone())
+                                    }
+                                    Ordering::Less => {
+                                        None
+                                    }
+                                }                                
+                            }
+                            CombinationKind::SuitMatch => {
+                                if c.points > combi.points {
+                                    subsumed = true;
+                                    Some(c.clone())
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => Some(c.clone()),
+                        },
+                    })
+                    .collect::<Vec<Combination>>();
+                if !subsumed {
+                    self.combinations.push(combi);
+                }
             }
         }
     }
-
-    local_score
 }
 
-fn score_flush(hand: &[Card], is_crib: bool) -> i32 {
-    if hand.iter().all(|card| card.suit() == hand[0].suit()) {
-        return hand.len().try_into().unwrap();
-    }
-
-    if is_crib {
-        return 0;
-    }
-
-    let combis = hand.iter().combinations(4);
-    for set in combis.into_iter() {
-        if set.iter().all(|card| card.suit() == hand[0].suit()) {
-            return 4;
+impl Combination {
+    fn new(kind: CombinationKind, cards: Vec<Card>) -> Combination {
+        let name = Combination::name(kind, cards.len());
+        let points = Combination::points(name);
+        let rank = match kind {
+            CombinationKind::RankMatch => cards[0].rank,
+            _ => Rank::Unknown,
+        };
+        let suit = match kind {
+            CombinationKind::SuitMatch => cards[0].suit,
+            _ => Suit::Unknown,
+        };
+        Combination {
+            kind,
+            name,
+            cards,
+            rank_info: rank,
+            suit_info: suit,
+            points,
         }
     }
 
-    0
+    /// This is the one place in which `CombinationKind`s and card counts are
+    /// mapped to `CombinationName`s.
+    fn name(kind: CombinationKind, count: usize) -> CombinationName {
+        match kind {
+            CombinationKind::Nob => CombinationName::Nob,
+            CombinationKind::Fifteen => CombinationName::Fifteen,
+            CombinationKind::RankMatch => match count {
+                2 => CombinationName::Pair,
+                3 => CombinationName::RoyalPair,
+                4 => CombinationName::DoubleRoyalPair,
+                _ => panic!("How did you get here?"),
+            },
+            CombinationKind::Run => match count {
+                3 => CombinationName::RunOfThree,
+                4 => CombinationName::RunOfFour,
+                5 => CombinationName::RunOfFive,
+                _ => panic!("How did you get here?"),
+            },
+            CombinationKind::SuitMatch => match count {
+                4 => CombinationName::FlushOfFour,
+                5 => CombinationName::FlushOfFive,
+                _ => panic!("How did you get here?"),
+            },
+        }
+    }
+
+    /// This is the one place in which particular combinations are mapped to
+    /// points.
+    fn points(name: CombinationName) -> u32 {
+        match name {
+            CombinationName::Nob => 1,
+            CombinationName::Fifteen => 2,
+            CombinationName::Pair => 2,
+            CombinationName::RunOfThree => 3,
+            CombinationName::RunOfFour => 4,
+            CombinationName::FlushOfFour => 4,
+            CombinationName::RunOfFive => 5,
+            CombinationName::FlushOfFive => 5,
+            CombinationName::RoyalPair => 6,
+            CombinationName::DoubleRoyalPair => 12,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::game::cards::{Card, Ordinal::*, Suit as Of};
+    use crate::game::cards::{Card, Rank::*, Suit as Of};
     use card as c;
 
     macro_rules! test_case {
@@ -147,24 +352,24 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
-                let player_score = super::score_hand(&$player_hand, &$shared_card, false);
-                let crib_score = super::score_hand(&$crib_hand, &$shared_card, true);
-                let computer_score = super::score_hand(&$computer_hand, &$shared_card, false);
+                let player_score = super::score_hand((&$player_hand).to_vec(), $shared_card, false);
+                let crib_score = super::score_hand((&$crib_hand).to_vec(), $shared_card, true);
+                let computer_score = super::score_hand((&$computer_hand).to_vec(), $shared_card, false);
 
                 assert_eq!(
-                    $expected_player_score, player_score,
+                    $expected_player_score, player_score.total_score,
                     "Player Algo Score: {} vs. Hand Score: {}",
-                    player_score, $expected_player_score
+                    player_score.total_score, $expected_player_score
                 );
                 assert_eq!(
-                    $expected_computer_score, computer_score,
+                    $expected_computer_score, computer_score.total_score,
                     "Computer Algo Score: {} vs. Hand Score: {}",
-                    computer_score, $expected_computer_score
+                    computer_score.total_score, $expected_computer_score
                 );
                 assert_eq!(
-                    $expected_crib_score, crib_score,
+                    $expected_crib_score, crib_score.total_score,
                     "Crib Algo Score: {} vs. Hand Score: {}",
-                    crib_score, $expected_crib_score
+                    crib_score.total_score, $expected_crib_score
                 );
             }
         };
