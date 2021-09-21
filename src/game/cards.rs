@@ -153,26 +153,23 @@ impl Card {
                 card_as_string
             );
         }
-        let ordinal: Rank = match tokens[0].parse() {
-            Ok(ordinal) => ordinal,
-            Err(_) => {
-                panic!(
-                    "\t\t\tError Parsing ordinal in: {:?}. {:?} is invalid",
-                    card_as_string, tokens[0]
-                );
-            }
-        };
-        let suit: Suit = match tokens[1].parse() {
-            Ok(suit) => suit,
-            Err(_) => panic!(
+
+        let rank: Rank = tokens[0].parse().unwrap_or_else(|_| {
+            panic!(
+                "\t\t\tError Parsing ordinal in: {:?}. {:?} is invalid",
+                card_as_string, tokens[0]
+            );
+        });
+
+        let suit: Suit = tokens[1].parse().unwrap_or_else(|_| {
+            panic!(
                 "\t\t\tError Parsing suit in: {:?}. {:?} is invalid",
                 card_as_string, tokens[1]
-            ),
-        };
+            );
+        });
 
-        Card::new(ordinal, suit)
+        Card::new(rank, suit)
     }
-    
 }
 #[allow(unused_macros)]
 macro_rules! card {

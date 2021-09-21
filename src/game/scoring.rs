@@ -1,6 +1,6 @@
 //! `score` provides a functional approach to tallying the score for a
-//! cribbage hand. It does not currently differentiate between dealer, player,
-//! and crib.
+//! cribbage hand. 
+
 #![allow(unused_imports)]
 use std::cmp::Ordering;
 use std::sync::mpsc::RecvTimeoutError;
