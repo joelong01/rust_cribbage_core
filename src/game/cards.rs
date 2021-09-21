@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 use std::fmt;
 use strum::AsStaticRef;
 use strum::IntoEnumIterator;

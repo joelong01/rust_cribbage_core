@@ -1,13 +1,15 @@
 use crate::game::cards::*;
-use arrayvec::IntoIter;
-use itertools::*;
+use itertools::Itertools;
 use std::convert::TryInto;
 
-pub fn score_hand(hand: &[Card], shared_card: &Card, is_crib: bool) -> i32 {
+pub fn score_hand(hand: &[Card], shared_card: Option<&Card>, is_crib: bool) -> i32 {
     let mut local_score = score_nibs(hand, shared_card);
 
     let mut local_hand: Vec<Card> = hand.to_vec();
-    local_hand.push(shared_card.clone());
+
+    if shared_card.is_some() {
+        local_hand.push(shared_card.unwrap().clone());
+    }
 
     local_score += score_flush(&local_hand, is_crib);
 
@@ -33,12 +35,14 @@ fn score_same_kind(hand: &[Card]) -> i32 {
     local_score
 }
 
-fn score_nibs(hand: &[Card], shared_card: &Card) -> i32 {
-    if hand
-        .iter()
-        .any(|card| card.suit() == shared_card.suit() && card.ordinal() == Ordinal::Jack)
-    {
-        return 1;
+fn score_nibs(hand: &[Card], shared_card: Option<&Card>) -> i32 {
+    if shared_card.is_some() {
+        if hand
+            .iter()
+            .any(|card| card.suit() == shared_card.unwrap().suit() && card.ordinal() == Ordinal::Jack)
+        {
+            return 1;
+        }
     }
 
     0
@@ -148,9 +152,9 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
-                let player_score = super::score_hand(&$player_hand, &$shared_card, false);
-                let crib_score = super::score_hand(&$crib_hand, &$shared_card, true);
-                let computer_score = super::score_hand(&$computer_hand, &$shared_card, false);
+                let player_score = super::score_hand(&$player_hand, Some(&$shared_card), false);
+                let crib_score = super::score_hand(&$crib_hand, Some(&$shared_card), true);
+                let computer_score = super::score_hand(&$computer_hand, Some(&$shared_card), false);
 
                 assert_eq!($expected_player_score, player_score, "Player Algo Score: {} vs. Hand Score: {}", player_score, $expected_player_score);
                 assert_eq!($expected_computer_score, computer_score, "Computer Algo Score: {} vs. Hand Score: {}", computer_score, $expected_computer_score);
