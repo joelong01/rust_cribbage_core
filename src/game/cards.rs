@@ -7,6 +7,7 @@
 #![allow(clippy::redundant_field_names)]
 
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use strum::AsStaticRef;
 use strum_macros::AsStaticStr;
 use strum_macros::EnumIter;

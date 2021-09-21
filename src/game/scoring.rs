@@ -1,3 +1,4 @@
+
 //! `score` provides a functional approach to tallying the score for a
 //! cribbage hand. 
 
@@ -17,6 +18,7 @@ pub enum CombinationKind {
     Run,
     SuitMatch,
 }
+
 
 /// Some cribbage scoring combinations have specific names
 /// depending on how many cards are involved.
@@ -86,6 +88,7 @@ pub fn nob_score(hand: Hand, starter: Card) -> Score {
     }
     score
 }
+
 
 /// `score` evaluates `cards` against each of the cribbage hand scoring
 /// combinations and returns all scoring combinations that are
@@ -341,6 +344,7 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
+
                 let player_score = super::score_hand((&$player_hand).to_vec(), $shared_card, false);
                 let crib_score = super::score_hand((&$crib_hand).to_vec(), $shared_card, true);
                 let computer_score = super::score_hand((&$computer_hand).to_vec(), $shared_card, false);

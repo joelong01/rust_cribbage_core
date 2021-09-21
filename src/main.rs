@@ -50,3 +50,4 @@ fn dump_deck(deck: &ArrayVec<Card, 52>) {
         }
     }
 }
+
