@@ -66,9 +66,9 @@ pub fn score_counting_cards_played(
         for i in 0..all_cards.len() - 1 {
             // get a slice of the last i cards, sort them, and see if they are a run.
             // we can't sort the slice because they sort in place and return ()
-            let possible_run = &mut all_cards.as_slice()[i..].to_vec();
+            let mut possible_run = all_cards.as_slice()[i..].to_vec();
             possible_run.sort();
-            if let Some(c) = score_run(possible_run.clone()) {
+            if let Some(c) = score_run(possible_run) {
                 score.combinations.push(c);
                 break; // stop on the largest run
             }
