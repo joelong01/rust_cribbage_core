@@ -1,6 +1,5 @@
-#![allow(unused_imports)]
-use crate::game::cards::{Card, Hand, Rank, Suit};
-use crate::game::scoring::{score_run, Combination, CombinationKind, CombinationName, Score};
+use crate::game::cards::{Card};
+use crate::game::scoring::{score_run, Combination, CombinationKind, Score};
 use std::error::Error;
 
 /// Calculates the score during the counting phase where played_cards have already been played and card is now played
@@ -82,7 +81,6 @@ pub fn score_counting_cards_played(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::game::cards::{Card, Rank::*, Suit as Of};
     use card as c;
 
