@@ -8,20 +8,18 @@ use itertools::Itertools;
  * that will perform best based on the value of the hand plus
  * or minus the value of the crib
  */
-pub fn select_crib_cards(hand: &[Card], _: bool) -> Vec<Card>{
-
+pub fn select_crib_cards(hand: &[Card], _: bool) -> Vec<Card> {
     // get all possible hands
     let potential_hands = hand.to_vec().into_iter().combinations(4);
     let mut max_crib = Vec::<Card>::new();
-    let mut max_score:i32 = -1000;
-    
-    for h in potential_hands {
+    let mut max_score: i32 = -1000;
 
+    for h in potential_hands {
         // get the score for the current hand we are evaluating
-        let score:i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
+        let score: i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
         let crib = get_crib_cards(hand, &h);
 
-            // TODO: implement CardScoring.getCardValueToYourCrib
+        // TODO: implement CardScoring.getCardValueToYourCrib
 
         if score > max_score {
             max_score = score;
@@ -51,12 +49,11 @@ fn get_crib_cards(hand: &[Card], held_cards: &[Card]) -> Vec<Card> {
 
 mod tests {
     // import names from outer scope
-    
+
     use super::*;
 
     #[test]
     fn test_select_crib_cards_hand_returns_zero() {
-
         // prepare test parameters
         let test_hand = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
         let mut hand: Vec<Card> = Vec::new();
@@ -68,13 +65,12 @@ mod tests {
         // execute the method under test
         let crib = select_crib_cards(&hand, true);
 
-        // returned crib len should equal 0 given the inputs 
+        // returned crib len should equal 0 given the inputs
         assert_eq!(crib.len(), 0);
     }
 
     #[test]
     fn test_get_crib_cards_match_expected_length() {
-
         // prepare test parameters
         let test_hand = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
         let held_cards = "AceOfSpades,FourOfDiamonds,SixOfClubs,JackOfDiamonds";
@@ -92,13 +88,12 @@ mod tests {
         // execute the method under test
         let crib = get_crib_cards(&hand, &held);
 
-        // returned crib len should equal 3 given the inputs 
+        // returned crib len should equal 3 given the inputs
         assert_eq!(crib.len(), 3);
     }
 
     #[test]
     fn test_get_crib_cards_all_match_length_zero() {
-
         // prepare test parameters
         let test_hand = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
         let held_cards = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
@@ -116,13 +111,12 @@ mod tests {
         // execute the method under test
         let crib = get_crib_cards(&hand, &held);
 
-        // returned crib len should equal 0 given the inputs 
+        // returned crib len should equal 0 given the inputs
         assert_eq!(crib.len(), 0);
     }
 
     #[test]
     fn test_get_crib_cards_empty_input_length_zero() {
-
         // prepare test parameters
         let hand: Vec<Card> = Vec::new();
         let held: Vec<Card> = Vec::new();
@@ -130,7 +124,7 @@ mod tests {
         // execute the method under test
         let crib = get_crib_cards(&hand, &held);
 
-        // returned crib len should equal 0 given the inputs 
+        // returned crib len should equal 0 given the inputs
         assert_eq!(crib.len(), 0);
     }
 }
