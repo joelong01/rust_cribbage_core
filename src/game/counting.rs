@@ -1,4 +1,4 @@
-use crate::game::cards::{Card};
+use crate::game::cards::Card;
 use crate::game::scoring::{score_run, Combination, CombinationKind, Score};
 use std::error::Error;
 
