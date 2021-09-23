@@ -73,7 +73,7 @@ pub fn score_hand(hand: Hand, starter: Option<Card>, is_crib: bool) -> Score {
     
     all_combinations_of_min_size(vector, 2)
         .filter_map(|cards| score(cards, is_crib))
-        .fold(s, |mut score, combis| tally(&mut score, combis))
+        .fold(&mut s, |score, combis| score.tally(combis)).clone()
 }
 
 /// A Nob is scored if a Jack in the `hand` matches the suit of the `starter`.
@@ -114,18 +114,6 @@ pub fn score(cards: Vec<Card>, is_crib: bool) -> Option<Vec<Combination>> {
         0 => None,
         _ => Some(combis),
     }
-}
-
-/// `tally` adds the `Combination`s in `combis` to `score` one at a time,
-/// so that combinations that are subsumed by other combinations are
-/// handled correctly.
-pub fn tally(score: &mut Score, combis: Vec<Combination>) -> Score {
-    for c in combis {
-        score.add_combination(c);
-    }
-    score.total_score = score.combinations.iter().map(|combi| combi.points).sum();
-
-    score.clone()
 }
 
 /// If the values of the `cards` sum to 15, returns a `Fifteen` `Combination`
@@ -206,6 +194,18 @@ impl Score {
     /// Returns the sum of the points associated with the `combinations`
     pub fn points(self) -> u32 {
         self.combinations.iter().fold(0, |p, c| p + c.points)
+    }
+
+    /// `tally` adds the `Combination`s in `combis` to `score` one at a time,
+    /// so that combinations that are subsumed by other combinations are
+    /// handled correctly.
+    pub fn tally(&mut self, combis: Vec<Combination>) -> &mut Self {
+        for c in combis {
+            self.add_combination(c);
+        }
+        self.total_score = self.combinations.iter().map(|combi| combi.points).sum();
+
+        self
     }
 
     /// `add_combination` adds `combi` to the score, unless it would be
