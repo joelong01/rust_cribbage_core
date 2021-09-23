@@ -11,9 +11,7 @@ use std::collections::HashMap;
 use std::env;
 use strum::IntoEnumIterator;
 
-fn main() {
-
-}
+fn main() {}
 
 fn serialize_hand(hand: &[Card]) -> String {
     let json_hand = serde_json::to_string(&hand).unwrap();
@@ -50,4 +48,3 @@ fn dump_deck(deck: &ArrayVec<Card, 52>) {
         }
     }
 }
-

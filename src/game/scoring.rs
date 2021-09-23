@@ -16,6 +16,7 @@ pub enum CombinationKind {
     RankMatch,
     Run,
     SuitMatch,
+    ThirtyOne,
 }
 
 /// Some cribbage scoring combinations have specific names
@@ -32,6 +33,9 @@ pub enum CombinationName {
     FlushOfFive,
     RoyalPair,
     DoubleRoyalPair,
+    RunOfSix,
+    RunOfSeven,
+    ThirtyOne,
 }
 
 /// `Combination` is a record of a single scoring combination of cards.
@@ -42,7 +46,7 @@ pub struct Combination {
     cards: Vec<Card>,
     rank_info: Rank, // convenience field for pairs
     suit_info: Suit, // convenience field for flushes
-    points: u32,
+    pub points: u32,
 }
 
 /// `Score` holds a collection of scoring combinations. `score.points()`
@@ -63,14 +67,13 @@ pub struct Score {
 //  *
 pub fn score_hand(hand: Hand, starter: Option<Card>, is_crib: bool) -> Score {
     let mut vector = hand.clone();
-    let mut s:Score = Score::new();
+    let mut s: Score = Score::new();
     if let Some(starter) = starter {
         vector.push(starter);
         s = nob_score(hand, starter);
     }
     vector.sort(); // ordered by rank rirst
 
-    
     all_combinations_of_min_size(vector, 2)
         .filter_map(|cards| score(cards, is_crib))
         .fold(s, |mut score, combis| tally(&mut score, combis))
@@ -153,7 +156,7 @@ fn score_pair(cards: Vec<Card>) -> Option<Combination> {
 
 /// If `cards` has at least three cards, and they form a contiguous run of
 /// sequential `Rank`s, returns a `Run` `Combination`
-fn score_run(cards: Vec<Card>) -> Option<Combination> {
+pub fn score_run(cards: Vec<Card>) -> Option<Combination> {
     if cards.len() < 3 {
         None
     } else {
@@ -193,10 +196,14 @@ fn score_flush(cards: Vec<Card>, is_crib: bool) -> Option<Combination> {
         false => None,
     }
 }
-
+impl Default for Score {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl Score {
     /// Returns an empty score with no `Combination`s
-    fn new() -> Score {
+    pub fn new() -> Score {
         Score {
             combinations: Vec::new(),
             total_score: 0,
@@ -264,7 +271,7 @@ impl Score {
 }
 
 impl Combination {
-    fn new(kind: CombinationKind, cards: Vec<Card>) -> Combination {
+    pub fn new(kind: CombinationKind, cards: Vec<Card>) -> Combination {
         let name = Combination::name(kind, cards.len());
         let points = Combination::points(name);
         let rank = match kind {
@@ -301,6 +308,8 @@ impl Combination {
                 3 => CombinationName::RunOfThree,
                 4 => CombinationName::RunOfFour,
                 5 => CombinationName::RunOfFive,
+                6 => CombinationName::RunOfSix,
+                7 => CombinationName::RunOfSeven,
                 _ => panic!("How did you get here?"),
             },
             CombinationKind::SuitMatch => match count {
@@ -308,6 +317,7 @@ impl Combination {
                 5 => CombinationName::FlushOfFive,
                 _ => panic!("How did you get here?"),
             },
+            CombinationKind::ThirtyOne => CombinationName::ThirtyOne,
         }
     }
 
@@ -325,6 +335,11 @@ impl Combination {
             CombinationName::FlushOfFive => 5,
             CombinationName::RoyalPair => 6,
             CombinationName::DoubleRoyalPair => 12,
+            //
+            //  these are counting only -- not sure they are needed here?
+            CombinationName::RunOfSix => 6,
+            CombinationName::RunOfSeven => 7,
+            CombinationName::ThirtyOne => 2,
         }
     }
 }
@@ -347,8 +362,10 @@ mod tests {
      ) => {
             #[test]
             fn $name() {
-                let player_score = super::score_hand((&$player_hand).to_vec(), Some($shared_card), false);
-                let crib_score = super::score_hand((&$crib_hand).to_vec(), Some($shared_card), true);
+                let player_score =
+                    super::score_hand((&$player_hand).to_vec(), Some($shared_card), false);
+                let crib_score =
+                    super::score_hand((&$crib_hand).to_vec(), Some($shared_card), true);
                 let computer_score =
                     super::score_hand((&$computer_hand).to_vec(), Some($shared_card), false);
 
