@@ -5,8 +5,8 @@
 use std::cmp::Ordering;
 use std::sync::mpsc::RecvTimeoutError;
 
-use crate::game::cards::{Card, Hand, Rank, Suit};
-use crate::game::combinator::all_combinations_of_min_size;
+use crate::cards::{Card, Hand, Rank, Suit};
+use crate::combinator::all_combinations_of_min_size;
 
 /// Cribbage has five basic hand scoring combinations.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -346,7 +346,7 @@ impl Combination {
 
 #[cfg(test)]
 mod tests {
-    use crate::game::cards::{Card, Rank::*, Suit as Of};
+    use crate::cards::{Card, Rank::*, Suit as Of};
     use card as c;
 
     macro_rules! test_case {

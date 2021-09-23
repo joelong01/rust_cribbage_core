@@ -1,17 +1,21 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+#[macro_use]
+mod cards;
+mod combinator;
+mod counting;
+mod scoring;
+mod select_cards;
+
+use cards::Card;
+use scoring::score_hand;
 use arrayvec::ArrayVec;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
-mod game;
-use crate::game::cards::*;
-use crate::game::scoring::score_hand;
 use std::collections::HashMap;
 use std::env;
 use strum::IntoEnumIterator;
-
-fn main() {}
 
 fn serialize_hand(hand: &[Card]) -> String {
     let json_hand = serde_json::to_string(&hand).unwrap();

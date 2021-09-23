@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
-use crate::game::cards::*;
-use crate::game::scoring::*;
+use crate::cards::*;
+use crate::scoring::*;
 use itertools::Itertools;
 
 /**
