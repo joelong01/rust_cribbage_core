@@ -1,7 +1,7 @@
 #![allow(unused_imports)]
-use crate::game::cards::*;
-use crate::game::scoring::*;
-use itertools::Itertools;
+use crate::cards::Card;
+use crate::scoring::score_hand;
+use crate::combinator::all_combinations;
 
 /**
  * go through each of the 16 combinations looking for the hand
@@ -10,20 +10,23 @@ use itertools::Itertools;
  */
 pub fn select_crib_cards(hand: &[Card], _: bool) -> Vec<Card> {
     // get all possible hands
-    let potential_hands = hand.to_vec().into_iter().combinations(4);
     let mut max_crib = Vec::<Card>::new();
     let mut max_score: i32 = -1000;
 
-    for h in potential_hands {
-        // get the score for the current hand we are evaluating
-        let score: i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
-        let crib = get_crib_cards(hand, &h);
+    let potential_hands = all_combinations(hand.to_vec());
 
-        // TODO: implement CardScoring.getCardValueToYourCrib
+    for p in potential_hands {
+        for h in p {
+            // get the score for the current hand we are evaluating
+            let score: i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
+            let crib = get_crib_cards(hand, &[h]);
 
-        if score > max_score {
-            max_score = score;
-            max_crib = crib.clone();
+            // TODO: implement CardScoring.getCardValueToYourCrib
+
+            if score > max_score {
+                max_score = score;
+                max_crib = crib.clone();
+            }
         }
     }
 
@@ -53,7 +56,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_select_crib_cards_hand_returns_zero() {
+    fn test_select_crib_cards_hand_returns_three_cards() {
         // prepare test parameters
         let test_hand = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
         let mut hand: Vec<Card> = Vec::new();
@@ -65,8 +68,8 @@ mod tests {
         // execute the method under test
         let crib = select_crib_cards(&hand, true);
 
-        // returned crib len should equal 0 given the inputs
-        assert_eq!(crib.len(), 0);
+        // returned crib len should equal 3 cards given the inputs
+        assert_eq!(crib.len(), 3);
     }
 
     #[test]
