@@ -5,14 +5,14 @@
 mod cards;
 mod combinator;
 mod counting;
-mod scoring;
 mod select_cards;
+mod scoring;
 
-use cards::Card;
-use scoring::score_hand;
 use arrayvec::ArrayVec;
+use cards::Card;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
+use scoring::score_hand;
 use std::collections::HashMap;
 use std::env;
 use strum::IntoEnumIterator;

@@ -7,39 +7,39 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'rust_cribbage_core'",
+            "name": "Debug executable 'cribbage-api'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=rust_cribbage_core",
-                    "--package=rust_cribbage_core"
+                    "--bin=cribbage-api",
+                    "--package=cribbage-api"
                 ],
                 "filter": {
-                    "name": "rust_cribbage_core",
+                    "name": "cribbage-api",
                     "kind": "bin"
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/api"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'rust_cribbage_core'",
+            "name": "Debug unit tests in executable 'cribbage-game'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=rust_cribbage_core",
-                    "--package=rust_cribbage_core"
+                    "--lib",
+                    "--package=cribbage-game"
                 ],
                 "filter": {
-                    "name": "rust_cribbage_core",
-                    "kind": "bin"
+                    "name": "cribbage-game",
+                    "kind": "lib"
                 }
             },
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}/game"
         }
     ]
 }
