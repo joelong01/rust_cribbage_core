@@ -1,5 +1,5 @@
-use actix_web::Responder;
+use actix_web::{HttpResponse, Responder};
 
 pub async fn game() -> impl Responder {
-    format!("Welcome to Cribbage Rust!!!")
+    HttpResponse::Ok().body("Welcome to Cribbage Rust!!!")
 }

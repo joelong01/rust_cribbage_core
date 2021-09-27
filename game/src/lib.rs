@@ -5,8 +5,8 @@
 mod cards;
 mod combinator;
 mod counting;
-mod select_cards;
 mod scoring;
+mod select_cards;
 
 use arrayvec::ArrayVec;
 use cards::Card;

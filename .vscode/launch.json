@@ -40,6 +40,25 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}/game"
-        }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug selected unit test",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=cribbage-game"
+                ],
+                "filter": {
+                    "name": "cribbage-game",
+                    "kind": "lib"
+                }
+            },
+            "args": ["${selectedText}"],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

@@ -76,7 +76,8 @@ pub fn score_hand(hand: Hand, starter: Option<Card>, is_crib: bool) -> Score {
 
     all_combinations_of_min_size(vector, 2)
         .filter_map(|cards| score(cards, is_crib))
-        .fold(&mut s, |score, combis| score.tally(combis)).clone()
+        .fold(&mut s, |score, combis| score.tally(combis))
+        .clone()
 }
 
 /// A Nob is scored if a Jack in the `hand` matches the suit of the `starter`.
