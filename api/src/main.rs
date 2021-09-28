@@ -2,6 +2,7 @@ mod handlers;
 
 use actix_web::{web, App, HttpServer};
 
+
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
     // Start http server
