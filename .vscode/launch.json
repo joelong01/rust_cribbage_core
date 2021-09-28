@@ -57,7 +57,9 @@
                     "kind": "lib"
                 }
             },
-            "args": ["${selectedText}"],
+            "args": [
+                "${selectedText}"
+            ],
             "cwd": "${workspaceFolder}"
         },
     ]

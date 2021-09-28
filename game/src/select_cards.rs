@@ -146,7 +146,7 @@ pub fn get_next_counted_card(
         if cards.len() != 2 {
             panic!("all_combinations_of_min_size returned the wrong size Vec!");
         }
-        cards.sort(); // this sort might not be needed, but i'm not sure if all_combinations_of_size guarantees to returns sorted if the input was sorted
+        cards.sort();
         if cards[0].rank == cards[1].rank
             && current_count + 3 * cards[0].value <= 31
             && strategic_weight < 10
@@ -220,7 +220,7 @@ pub fn get_next_counted_card(
 
     if strategic_weight > 0 {
         if card_to_play.rank == Rank::Unknown {
-            panic!("strategic weight is set but the card_to_play is not not");
+            panic!("strategic weight is set but the card_to_play is not");
         }
         return Ok(card_to_play);
     }
@@ -235,6 +235,7 @@ pub fn get_next_counted_card(
     //  we also know that we have at least two cards, because if there was only one, we would have already picked it.
     Ok(cards_left[cards_left.len() - 2])
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -243,12 +244,11 @@ mod tests {
 
     macro_rules! test_case {
         (
-    $name:ident,
-    $counted_cards:expr,
-    $cards_left:expr,        
-    $expected_card:expr,   
-    $expected_go:literal,             
-
+        $name:ident,
+        $counted_cards:expr,
+        $cards_left:expr,        
+        $expected_card:expr,   
+        $expected_go:literal,             
     ) => {
             #[test]
             fn $name() {
@@ -274,11 +274,10 @@ mod tests {
             }
         };
     }
-    /*
-        Testing the pick cards agorithm.  this is a little strange because innovation will cause different cards to be picked and then
-        we'll have to update the tests.
-
-    */
+    //
+    //    Testing the pick cards agorithm.  this is a little strange because innovation will cause different cards to be picked and then
+    //    we'll have to update the tests.
+    //
     test_case!(
         first_card,
         [].to_vec(),
