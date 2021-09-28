@@ -146,7 +146,7 @@ pub fn get_next_counted_card(
         if cards.len() != 2 {
             panic!("all_combinations_of_min_size returned the wrong size Vec!");
         }
-        cards.sort();   // this sort might not be needed, but i'm not sure if all_combinations_of_size guarantees to returns sorted if the input was sorted
+        cards.sort(); // this sort might not be needed, but i'm not sure if all_combinations_of_size guarantees to returns sorted if the input was sorted
         if cards[0].rank == cards[1].rank
             && current_count + 3 * cards[0].value <= 31
             && strategic_weight < 10
@@ -237,9 +237,9 @@ pub fn get_next_counted_card(
 }
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::cards::{Card, Rank::*, Suit as Of};
     use card as c;
-    use super::*;
 
     macro_rules! test_case {
         (
@@ -374,7 +374,7 @@ mod tests {
         c!(Jack, Of::Hearts),
         false,
     );
-    
+
     test_case!(
         test_go,
         [
@@ -388,7 +388,7 @@ mod tests {
         true,
     );
 
-     #[test]
+    #[test]
     fn test_select_crib_cards_hand_returns_three_cards() {
         // prepare test parameters
         let test_hand = "FiveOfHearts,FiveOfClubs,SixOfHearts,SixOfClubs";
@@ -463,5 +463,4 @@ mod tests {
         // returned crib len should equal 0 given the inputs
         assert_eq!(crib.len(), 0);
     }
-
 }
