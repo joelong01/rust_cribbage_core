@@ -2,14 +2,14 @@
 //! cribbage hand.
 
 #![allow(unused_imports)]
+use crate::cards::{Card, Hand, Rank, Suit};
+use crate::combinator::all_combinations_of_min_size;
+use serde::Serialize;
 use std::cmp::Ordering;
 use std::sync::mpsc::RecvTimeoutError;
 
-use crate::cards::{Card, Hand, Rank, Suit};
-use crate::combinator::all_combinations_of_min_size;
-
 /// Cribbage has five basic hand scoring combinations.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize)]
 pub enum CombinationKind {
     Nob,
     Fifteen,
@@ -21,7 +21,7 @@ pub enum CombinationKind {
 
 /// Some cribbage scoring combinations have specific names
 /// depending on how many cards are involved.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize)]
 pub enum CombinationName {
     Nob,
     Fifteen,
@@ -39,11 +39,11 @@ pub enum CombinationName {
 }
 
 /// `Combination` is a record of a single scoring combination of cards.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Combination {
     kind: CombinationKind,
-    name: CombinationName,
-    cards: Vec<Card>,
+    pub name: CombinationName,
+    pub cards: Vec<Card>,
     rank_info: Rank, // convenience field for pairs
     suit_info: Suit, // convenience field for flushes
     pub points: u32,
@@ -51,7 +51,7 @@ pub struct Combination {
 
 /// `Score` holds a collection of scoring combinations. `score.points()`
 /// returns the sume of the points of the `combinations`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Score {
     pub combinations: Vec<Combination>,
     pub total_score: u32, // convinient sum of all combinations.score

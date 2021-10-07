@@ -1,4 +1,5 @@
 use crate::cards::Card;
+use crate::cribbage_errors::{CribbageError, CribbageErrorKind};
 use crate::scoring::{score_run, Combination, CombinationKind, Score};
 use std::error::Error;
 
@@ -8,10 +9,13 @@ use std::error::Error;
 pub fn score_counting_cards_played(
     played_cards: &[Card],
     card: Card,
-) -> Result<Score, Box<dyn Error>> {
+) -> Result<Score, CribbageError> {
     let count: i32 = played_cards.iter().map(|c| c.value).sum::<i32>() + card.value;
     if count > 31 {
-        return Err("invalid card + count > 31".into());
+        return Err(CribbageError::new(
+            CribbageErrorKind::BadCard,
+            "invalid card + count > 31".into(),
+        ));
     }
 
     let mut score: Score = Score::new();

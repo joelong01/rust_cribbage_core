@@ -2,11 +2,12 @@
 #![allow(unused_imports)]
 
 #[macro_use]
-mod cards;
+pub mod cards;
 mod combinator;
-mod counting;
-mod scoring;
-mod select_cards;
+pub mod counting;
+pub mod scoring;
+pub mod select_cards;
+pub mod cribbage_errors;
 
 use arrayvec::ArrayVec;
 use cards::Card;
