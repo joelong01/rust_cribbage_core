@@ -193,6 +193,13 @@ pub fn get_next_counted_card(
         // this means we have no valid cards to play
         return Ok(None);
     }
+
+    //
+    //  if there is only one card that can be played, return it
+    if playable_cards.len() == 1 {
+        return Ok(Some(playable_cards[0]));
+    }
+
     //
     //  get the most points - innovate here and pick the *best* one, not necessarily the one with most points!
     if max > 0 {
@@ -203,7 +210,7 @@ pub fn get_next_counted_card(
 
     //
     //  find all combinations of 2 cards in the cards I have left...
-    let two_card_combi = all_combinations_of_size(playable_cards, 2, 2);
+    let two_card_combi = all_combinations_of_size(playable_cards.clone(), 2, 2);
     //
     //  we only want to interate through the 2 card combinations once, so
     //  we set a strategic weight to pick between the various scenarios and
@@ -297,13 +304,13 @@ pub fn get_next_counted_card(
     //
     //  if the last card (the highest value) is not a 5, return it
     //
-    if available_cards[available_cards.len() - 1].value != 5 {
-        return Ok(Some(available_cards[available_cards.len() - 1]));
+    if playable_cards[playable_cards.len() - 1].value != 5 {
+        return Ok(Some(playable_cards[playable_cards.len() - 1]));
     }
     //
     //  if it is a 5, return the next highest one -- we know it is not a pair because if it was, we'd have played it based on what we have above
     //  we also know that we have at least two cards, because if there was only one, we would have already picked it.
-    Ok(Some(available_cards[available_cards.len() - 2]))
+    Ok(Some(playable_cards[playable_cards.len() - 2]))
 }
 #[cfg(test)]
 mod tests {

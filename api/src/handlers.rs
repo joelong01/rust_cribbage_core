@@ -5,9 +5,6 @@ use azure_sdk_cosmos::{prelude::*, responses::ListDocumentsResponse};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
-pub async fn game() -> impl Responder {
-    HttpResponse::Ok().body("Welcome to Cribbage Rust!!!")
-}
 #[derive(Debug, Serialize, Deserialize)]
 struct CosmosConnectionInfo {
     pub key: String,
@@ -203,10 +200,6 @@ pub async fn add_ai(info: Path<(String, String, String, String)>) -> impl Respon
             return HttpResponse::Ok().body(format!("Error adding document: {}", e.to_string()));
         }
     };
-}
-
-pub async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
 }
 
 pub async fn test_cosmos() -> impl Responder {

@@ -4,12 +4,12 @@
 #![allow(unused_imports)]
 use crate::cards::{Card, Hand, Rank, Suit};
 use crate::combinator::all_combinations_of_min_size;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use std::cmp::Ordering;
 use std::sync::mpsc::RecvTimeoutError;
 
 /// Cribbage has five basic hand scoring combinations.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CombinationKind {
     Nob,
     Fifteen,
@@ -21,7 +21,7 @@ pub enum CombinationKind {
 
 /// Some cribbage scoring combinations have specific names
 /// depending on how many cards are involved.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CombinationName {
     Nob,
     Fifteen,
