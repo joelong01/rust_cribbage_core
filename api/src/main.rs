@@ -4,29 +4,25 @@ mod handlers;
 use actix_cors::Cors;
 use actix_web::{web, App, HttpServer};
 
-static PORT:u32 = 8080;
+/**
+ *  this is the main entry point for the REST API.  This project is a wire-compatible replacement for the REST API found at
+ *  https://github.com/joelong01/CribbageJS , including all of its mistakes and foibles such as non-versioned API.  The goal
+ *  is to make the client at https://github.com/joelong01/CribbageUi.Js run unmodified.
+ *                
+ */
+
+//
+// the client expects 8080, but this is the one thing we change on the client
+// see the serviceProxy.js file where HOST_NAME is defined
+//
+static PORT: u32 = 8080;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // Start http server
-
     HttpServer::new(|| {
         let cors = Cors::permissive();
         App::new()
             .wrap(cors)
-            .service(
-                //
-                //  these are still experimental as I try to figure out how to post to cosmos...
-                web::scope("registeredai")
-                    .service(web::resource("/").route(web::get().to(handlers::get_registered_ais)))
-                    .service(
-                        web::resource("ai/{name}/{author}/{description}/{uri}")
-                            .route(web::post().to(handlers::add_ai)),
-                    )
-                    .service(
-                        web::resource("testcosmos").route(web::get().to(handlers::test_cosmos)),
-                    ),
-            )
             .service(
                 web::scope("/api/")
                     .service(
@@ -45,7 +41,8 @@ async fn main() -> std::io::Result<()> {
                             .route(web::get().to(game_handlers::get_crib)),
                     )
                     .service(
-                        web::resource("getnextcountedcard/{available_cards}/{total_count}/") // not trailing '/' as that is what the client uses
+                        // note trailing '/' as that is what the client uses
+                        web::resource("getnextcountedcard/{available_cards}/{total_count}/")
                             .route(web::get().to(game_handlers::get_first_counted_card)),
                     )
                     .service(
@@ -55,7 +52,9 @@ async fn main() -> std::io::Result<()> {
                         .route(web::get().to(game_handlers::next_counted_card)),
                     )
                     .service(
-                        web::resource("scorecountedcards/{available_cards}/{total_count}/")
+                        //
+                        //  another trailing /
+                        web::resource("scorecountedcards/{played_card}/{total_count}/")
                             .route(web::get().to(game_handlers::score_first_counted_card)),
                     )
                     .service(
@@ -73,11 +72,21 @@ async fn main() -> std::io::Result<()> {
                             .route(web::get().to(game_handlers::get_random_hand_repeat)),
                     ),
             )
+            .service(
+                //
+                //  these are still experimental as I try to figure out how to post to cosmos...
+                web::scope("registeredai")
+                    .service(web::resource("/").route(web::get().to(handlers::get_registered_ais)))
+                    .service(
+                        web::resource("ai/{name}/{author}/{description}/{uri}")
+                            .route(web::post().to(handlers::add_ai)),
+                    )
+                    .service(
+                        web::resource("testcosmos").route(web::get().to(handlers::test_cosmos)),
+                    ),
+            )
     })
     .bind(format!("localhost:{}", PORT))? // TODO pull address:port from config
     .run()
     .await
 }
-
-#[cfg(test)]
-mod tests {}

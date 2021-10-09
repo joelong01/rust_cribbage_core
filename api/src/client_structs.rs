@@ -127,12 +127,12 @@ macro_rules! csv_to_cards {
 }
 
 #[allow(non_snake_case)] // backwards compatibility
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RandomHandResponse {
     pub RandomCards: Vec<ClientCard>,
     pub ComputerCribCards: Vec<ClientCard>,
     pub SharedCard: ClientCard,
-    pub HiNobs: bool,
+    pub HisNobs: bool,
     pub RepeatUrl: String,
 }
 impl RandomHandResponse {
@@ -141,7 +141,7 @@ impl RandomHandResponse {
             RandomCards: Vec::<ClientCard>::default(),
             ComputerCribCards: Vec::<ClientCard>::default(),
             SharedCard: ClientCard::default(),
-            HiNobs: false,
+            HisNobs: false,
             RepeatUrl: "".to_string(),
         }
     }
@@ -196,7 +196,7 @@ impl ClientCard {
 // }
 //
 #[allow(non_snake_case)] // backwards compatibility
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CountedCardResponse {
     pub countedCard: Option<ClientCard>,
     pub Scoring: ScoreResponse,

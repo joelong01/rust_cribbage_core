@@ -1,22 +1,14 @@
-#![allow(unused_imports)]
-
 use crate::client_structs::{
     ClientCard, CountedCardResponse, CutCardResponse, CutCards, ParsedHand, RandomHandResponse,
-    ScoreInfo, ScoreResponse,
+    ScoreResponse,
 };
-use actix_web::client::Client;
-use actix_web::{get, web::Path, HttpRequest, HttpResponse, Responder};
-use azure_core::prelude::SequenceNumberCondition;
-use azure_core::response_from_headers;
-use cribbage_library::cards::{Card, Rank, Suit};
+use actix_web::{web::Path, HttpResponse, Responder};
+use cribbage_library::cards::Card;
 use cribbage_library::counting::score_counting_cards_played;
 use cribbage_library::cribbage_errors::{CribbageError, CribbageErrorKind};
-use cribbage_library::scoring::{score_hand as scorehand, CombinationName, Score};
+use cribbage_library::scoring::{score_hand as scorehand, Score};
 use cribbage_library::select_cards::{get_next_counted_card, select_crib_cards};
-use rand::prelude::SliceRandom;
-use rand::{thread_rng, Rng};
-use serde::Serialize;
-use std::convert::TryInto;
+use rand::prelude::{Rng, SliceRandom};
 
 const HOST_NAME: &'static str = "localhost:8088/api"; // important:  no ending '/'
 
@@ -396,56 +388,268 @@ pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl 
 
     HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
 }
-
+/**
+ *  Tests for the Web API.  The actual logic of the game is already tested in the unit tests for that part of the project
+ *
+ *  these tests test the "shape" of the Web API - making sure that serialization/deserialization works (by simply using it
+ *  in the tests) and that the response we get back are non-empty or have other reasonable values.
+ *
+ *  reproducibility isn't something the game uses, but is verified here to enforce the correctness of the repeat URL
+ *
+ */
 #[cfg(test)]
 mod tests {
-    use crate::game_handlers;
-    use crate::PORT;
-
     use super::*;
-    use actix_web::{dev::Body, test, web, App};
-    use serde_json::to_string;
+    use crate::game_handlers;
+    use actix_web::{test, web, App};
+    use cribbage_library::scoring::CombinationName;
+
+    macro_rules! get_repeat_url {
+        ($url: expr) => {{
+            let index = $url.find("/").unwrap() + 1;
+            let repeat_url = $url
+                .chars()
+                .skip(index - 1) // we want the '/' to start the string
+                .take($url.len() - index + 1)
+                .collect::<String>();
+
+            println!("repeat url: {}", repeat_url);
+            repeat_url
+        }};
+    }
+
+    macro_rules! vec_contains_card {
+        ($vec: expr, $card: expr) => {{
+            let mut found = false;
+            for c in $vec.iter() {
+                if c.cardName == $card {
+                    found = true;
+                    break;
+                }
+            }
+            found
+        }};
+    }
+    #[allow(unused_macros)]
+    macro_rules! vec_contains_score {
+        ($vec: expr, $name: expr) => {{
+            let mut found = false;
+            for score in $vec.iter() {
+                if score.ScoreName == $name {
+                    found = true;
+                    break;
+                }
+            }
+            found
+        }};
+    }
+
+    /**
+     *  this macro takes in the service to call, the orignal response, and the repeat URL
+     *  it then calls the service again with the repeat URL and verifies that the return
+     *  values are identical.
+     */
+    macro_rules! test_repeatability {
+        ($service:expr, $original_response:expr, $un_parsed_repeat_url:expr) => {{
+            let repeat_url = get_repeat_url!($un_parsed_repeat_url);
+            let req = test::TestRequest::get().uri(&repeat_url).to_request();
+            let response = test::read_response(&mut $service, req).await;
+            let repeat_json = response;
+            let json_original = serde_json::to_string(&$original_response).unwrap();
+            assert_eq!(actix_web::web::Bytes::from(repeat_json), json_original);
+        }};
+    }
 
     //
     //  this test gets the cut cards and the parses out the repeat URL to call cutcards again
     //  it verifies that it gets the same results back.
     //
-    //  this also verifies that the json deserialize of the CutCardResponse works correctly
+    //  this also verifies that the json serialize/deserialize of the CutCardResponse works correctly
     //
     #[actix_rt::test]
     async fn cut_cards() {
+        //
+        //  a hard won learning: the route below does *not* start with a "/"
+        //  but the URI to call it must start with a "/"
         let mut app = test::init_service(
             App::new()
-                .route("/api/cutcards", web::get().to(game_handlers::cut_cards))
+                .route("api/cutcards", web::get().to(game_handlers::cut_cards))
                 .route(
-                    "/api/cutcards/{cards}",
+                    "api/cutcards/{cards}",
                     web::get().to(game_handlers::cut_cards_repeat),
                 ),
         )
         .await;
+        //
+        //  this is the URI that has to start with a "/"
         let req = test::TestRequest::get().uri("/api/cutcards").to_request();
         let ccr: CutCardResponse = test::read_response_json(&mut app, req).await;
-        let index = ccr.RepeatUrl.rfind("/").unwrap() + 1;
-        let url = ccr
-            .RepeatUrl
-            .chars()
-            .skip(index)
-            .take(ccr.RepeatUrl.len() - index)
-            .collect::<String>();
-        let repeat_url = format!("/api/cutcards/{}", url);
-        println!("{}", repeat_url);
+        test_repeatability!(app, ccr, ccr.RepeatUrl);
+        //
+        //  make sure that we are actually getting data back
+        assert_ne!(ccr.RepeatUrl, "");
+        assert_ne!(ccr.CutCards.Computer.cardName, "");
+        assert_ne!(ccr.CutCards.Player.cardName, "");
+    }
+    #[actix_rt::test]
+    async fn test_random_hand() {
+        let mut app = test::init_service(
+            App::new()
+                .route(
+                    "api/getrandomhand/{is_computer_crib}",
+                    web::get().to(game_handlers::get_random_hand),
+                )
+                .route(
+                    "api/getrandomhand/{is_computer_crib}/{indices}/{shared_index}",
+                    web::get().to(game_handlers::get_random_hand_repeat),
+                ),
+        )
+        .await;
+        let req = test::TestRequest::get()
+            .uri("/api/getrandomhand/true")
+            .to_request();
+        let rhr: RandomHandResponse = test::read_response_json(&mut app, req).await;
 
-        let req = test::TestRequest::get().uri(&repeat_url).to_request();
-        let ccr_repeat: CutCardResponse = test::read_response_json(&mut app, req).await;
+        test_repeatability!(app, rhr, rhr.RepeatUrl);
 
-        assert_eq!(ccr.RepeatUrl, ccr_repeat.RepeatUrl);
+        assert_ne!(rhr.SharedCard.cardName, "");
+        assert_eq!(rhr.RandomCards.len(), 13);
+        assert_eq!(rhr.ComputerCribCards.len(), 2);
+    }
+
+    #[actix_rt::test]
+    async fn test_score_counted_cards() {
+        let mut app = test::init_service(
+            App::new()
+                .route(
+                    "api/scorecountedcards/{played_card}/{total_count}/",
+                    web::get().to(game_handlers::score_first_counted_card),
+                )
+                .route(
+                    "api/scorecountedcards/{played_card}/{total_count}/{counted_cards}",
+                    web::get().to(game_handlers::score_counted_cards),
+                ),
+        )
+        .await;
+        let uri = "/api/scorecountedcards/AceOfSpades/0/";
+        let req = test::TestRequest::get().uri(uri).to_request();
+
+        let score_response: ScoreResponse = test::read_response_json(&mut app, req).await;
+        assert_eq!(score_response.Score, 0);
+        assert_eq!(score_response.ScoreInfo.len(), 0);
+
+        let uri = "/api/scorecountedcards/TwoOfClubs/13/AceOfHearts,ThreeOfClubs,FiveOfDiamonds,FourOfClubs";
+        let req = test::TestRequest::get().uri(uri).to_request();
+        let score_response: ScoreResponse = test::read_response_json(&mut app, req).await;
+        assert_eq!(score_response.Score, 7);
+        assert_eq!(score_response.ScoreInfo.len(), 2);
         assert_eq!(
-            ccr.CutCards.Computer.cardName,
-            ccr_repeat.CutCards.Computer.cardName
+            vec_contains_score!(score_response.ScoreInfo, CombinationName::Fifteen),
+            true
         );
         assert_eq!(
-            ccr.CutCards.Computer.cardName,
-            ccr_repeat.CutCards.Computer.cardName
+            vec_contains_score!(score_response.ScoreInfo, CombinationName::RunOfFive),
+            true
         );
+    }
+
+    #[actix_rt::test]
+    async fn test_score_hand() {
+        let mut app = test::init_service(App::new().route(
+            "api/scorehand/{hand}/{shared_card}/{is_crib}",
+            web::get().to(game_handlers::score_hand),
+        ))
+        .await;
+        let uri = "/api/scorehand/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds/FourOfDiamonds/false";
+        let req = test::TestRequest::get().uri(uri).to_request();
+
+        let score_response: ScoreResponse = test::read_response_json(&mut app, req).await;
+        assert_eq!(score_response.Score, 15);
+        assert_eq!(score_response.ScoreInfo.len(), 6);
+        assert_eq!(
+            vec_contains_score!(score_response.ScoreInfo, CombinationName::Nob),
+            true
+        );
+        assert_eq!(
+            vec_contains_score!(score_response.ScoreInfo, CombinationName::Fifteen),
+            true
+        );
+        assert_eq!(
+            vec_contains_score!(score_response.ScoreInfo, CombinationName::RoyalPair),
+            true
+        );
+    }
+
+    #[actix_rt::test]
+    async fn test_get_crib_hand() {
+        let mut app = test::init_service(App::new().route(
+            "api/getcribcards/{hand}/{my_crib}",
+            web::get().to(game_handlers::get_crib),
+        ))
+        .await;
+        let uri = "/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/false";
+        let req = test::TestRequest::get().uri(uri).to_request();
+
+        let response: Vec<ClientCard> = test::read_response_json(&mut app, req).await;
+        assert_eq!(response.len(), 2);
+        assert_eq!(vec_contains_card!(response, "SixOfClubs"), true);
+        assert_eq!(vec_contains_card!(response, "FourOfDiamonds"), true);
+
+        let uri = "/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/true";
+        let req = test::TestRequest::get().uri(uri).to_request();
+        let response: Vec<ClientCard> = test::read_response_json(&mut app, req).await;
+        assert_eq!(response.len(), 2);
+        assert_eq!(vec_contains_card!(response, "FiveOfSpades"), true);
+        assert_eq!(vec_contains_card!(response, "JackOfDiamonds"), true);
+    }
+
+    #[actix_rt::test]
+    async fn test_get_next_counted_card() {
+        let mut app = test::init_service(
+            App::new()
+                .route(
+                    "api/getnextcountedcard/{available_cards}/{total_count}/",
+                    web::get().to(game_handlers::get_first_counted_card),
+                )
+                .route(
+                    "api/getnextcountedcard/{available_cards}/{total_count}/{cards_played}",
+                    web::get().to(game_handlers::next_counted_card),
+                ),
+        )
+        .await;
+        let uri = "/api/getnextcountedcard/AceOfSpades,AceOfHearts,TwoOfClubs,TenOfDiamonds/0/";
+        let req = test::TestRequest::get().uri(uri).to_request();
+
+        let response: CountedCardResponse = test::read_response_json(&mut app, req).await;
+        assert_eq!(response.countedCard.unwrap().cardName, "AceOfSpades");
+        assert_eq!(response.Scoring.Score, 0);
+        assert_eq!(response.Scoring.ScoreInfo.len(), 0);
+
+        let uri = "/api/getnextcountedcard/TenOfClubs,AceOfHearts/16/AceOfSpades,ThreeOfClubs,TwoOfClubs,TenOfHearts";
+        let req = test::TestRequest::get().uri(uri).to_request();
+        let response: CountedCardResponse = test::read_response_json(&mut app, req).await;
+        assert_eq!(response.countedCard.unwrap().cardName, "TenOfClubs");
+        assert_eq!(response.Scoring.Score, 2);
+        assert_eq!(response.Scoring.ScoreInfo.len(), 1);
+        assert_eq!(
+            vec_contains_score!(response.Scoring.ScoreInfo, CombinationName::Pair),
+            true
+        );
+
+        let uri = "/api/getnextcountedcard/ThreeOfClubs,TwoOfClubs/30/TenOfClubs,TenOfHearts,TenOfSpades";
+        let req = test::TestRequest::get().uri(uri).to_request();
+        let response: CountedCardResponse = test::read_response_json(&mut app, req).await;
+        match response.countedCard {
+            Some(_) =>  {
+                assert_eq!(true, false, "there should be no card here!")
+            },
+                None => { 
+                    // test passes
+            }
+        };
+        
+        assert_eq!(response.Scoring.Score, 0);
+        assert_eq!(response.Scoring.ScoreInfo.len(), 0);
+        
     }
 }
