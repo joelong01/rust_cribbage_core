@@ -1,91 +1,159 @@
-#![allow(unused_imports)]
-use crate::cards::Card;
-use crate::cards::{Rank, Suit};
-use crate::combinator::all_combinations_of_size;
-use crate::counting::score_counting_cards_played;
-use crate::scoring::{score_hand, Score};
-use std::error::Error;
+use crate::{   
+    cards::{Card, Rank, Suit},
+    combinator::all_combinations_of_size,
+    counting::score_counting_cards_played,
+    cribbage_errors::{CribbageError, CribbageErrorKind},
+    scoring::score_hand
+};
 
-/**
- * go through each of the 16 combinations looking for the hand
- * that will perform best based on the value of the hand plus
- * or minus the value of the crib
- */
-pub fn select_crib_cards(hand: &[Card], _: bool) -> Vec<Card> {
+
+/// go through each of the 16 combinations looking for the hand
+/// that will perform best based on the value of the hand plus
+/// or minus the value of the crib
+/// 
+pub fn select_crib_cards(
+    six_card_hand: &[Card],
+    my_crib: bool,
+) -> Result<Vec<Card>, CribbageError> {
     // get all possible hands
     let mut max_crib = Vec::<Card>::new();
-    let mut max_score: i32 = -1000;
+    let mut max_score: f32 = -1000.0;
 
-    let potential_hands = all_combinations_of_size(hand.to_vec(), 4, 4);
+    if six_card_hand.len() != 6 {
+        return Err(CribbageError::new(
+            CribbageErrorKind::BadHand,
+            format!(
+                "a hand should have 6 cards to select a crib.  you passed in {}",
+                six_card_hand.len()
+            ),
+        ));
+    }
 
-    for p in potential_hands {
-        for h in p {
-            // get the score for the current hand we are evaluating
-            let score: i32 = score_hand(hand.to_vec(), None, false).total_score as i32;
-            let crib = get_crib_cards(hand, &[h]);
+    let potential_hands = all_combinations_of_size(six_card_hand.to_vec(), 4, 4);
 
-            // TODO: implement CardScoring.getCardValueToYourCrib
+    for hand_to_try in potential_hands {
+        if hand_to_try.len() != 4 {
+            panic!("while looking for a crib, the hand size should be 4");
+        }
 
-            if score > max_score {
-                max_score = score;
-                max_crib = crib.clone();
+        // get the score for the current hand we are evaluating
+        let mut score: f32 = score_hand(hand_to_try.clone(), None, false).total_score as f32;
+        let crib = get_crib_cards(&six_card_hand.to_vec(), &hand_to_try.clone());
+
+        let mut expected_value: f32;
+        if my_crib {
+            expected_value =
+                card_value_to_my_crib(crib[0].rank as usize - 1, crib[1].rank as usize - 1);
+            if crib[0].suit == crib[1].suit {
+                expected_value = expected_value + 0.01; // all things being equal, discard cards of the same suit
             }
+            score = score + expected_value;
+        } else {
+            expected_value =
+                card_value_to_your_crib(crib[0].rank as usize - 1, crib[1].rank as usize - 1);
+            if crib[0].suit == crib[1].suit {
+                expected_value = expected_value + 0.01; // all things being equal, discard cards of the same suit
+            }
+            score = score - expected_value;
+        }
+
+        if score > max_score {
+            max_score = score;
+            max_crib = crib.clone();
         }
     }
 
-    max_crib
+    Ok(max_crib)
 }
 
-/**
- * hand has 6 cards and is passed in by the client
- * heldCards has 4 cards and is generated via permutation
- * this returns the 2 cards that are in the hand but not the crib
-*/
-fn get_crib_cards(hand: &[Card], held_cards: &[Card]) -> Vec<Card> {
-    let local_hand: Vec<Card> = hand.to_vec();
+static VALUE_MY_CRIB:[[f32;13];13] =
+               [[5.26, 4.18, 4.47, 5.45, 5.48, 3.80, 3.73, 3.70, 3.33, 3.37, 3.65, 3.39, 3.42],
+               [4.18, 5.67, 6.97, 4.51, 5.44, 3.87, 3.81, 3.58, 3.63, 3.51, 3.79, 3.52, 3.55] ,
+               [4.47, 6.97, 5.90, 4.88, 6.01, 3.72, 3.67, 3.84, 3.66, 3.61, 3.88, 3.62, 3.66] ,
+               [5.45, 4.51, 4.88, 5.65, 6.54, 3.87, 3.74, 3.84, 3.69, 3.62, 3.89, 3.63, 3.67] ,
+               [5.48, 5.44, 6.01, 6.54, 8.95, 6.65, 6.04, 5.49, 5.47, 6.68, 7.04, 6.71, 6.70] ,
+               [3.80, 3.87, 3.72, 3.87, 6.65, 5.74, 4.94, 4.70, 5.11, 3.15, 3.40, 3.08, 3.13] ,
+               [3.73, 3.81, 3.67, 3.74, 6.04, 4.94, 5.98, 6.58, 4.06, 3.10, 3.43, 3.17, 3.21] ,
+               [3.70, 3.58, 3.84, 3.84, 5.49, 4.70, 6.58, 5.42, 4.74, 3.86, 3.39, 3.16, 3.20] ,
+               [3.33, 3.63, 3.66, 3.69, 5.47, 5.11, 4.06, 4.74, 5.09, 4.27, 3.98, 2.97, 3.05] ,
+               [3.37, 3.51, 3.61, 3.62, 6.68, 3.15, 3.10, 3.86, 4.27, 4.73, 4.64, 3.36, 2.86] ,
+               [3.65, 3.79, 3.88, 3.89, 7.04, 3.40, 3.43, 3.39, 3.98, 4.64, 5.37, 4.90, 4.07] ,
+               [3.39, 3.52, 3.62, 3.63, 6.71, 3.08, 3.17, 3.16, 2.97, 3.36, 4.90, 4.66, 3.50] ,
+               [3.42, 3.55, 3.66, 3.67, 6.70, 3.13, 3.21, 3.20, 3.05, 2.86, 4.07, 3.50, 4.62] ];
+
+
+static VALUE_YOUR_CRIB:[[f32;13];13] = [
+                [6.02,  5.07,   5.07,   5.72,   6.01,   4.91,   4.89,   4.85,   4.55,   4.48,   4.68,   4.33,   4.30],
+                [5.07,  6.38,   7.33,   5.33,   6.11,   4.97,   4.97,   4.94,   4.70,   4.59,   4.81,   4.56,   4.45],
+                [5.07,  7.33,   6.68,   5.96,   6.78,   4.87,   5.01,   5.05,   4.87,   4.63,   4.86,   4.59,   4.48],
+                [5.72,  5.33,   5.96,   6.53,   7.26,   5.34,   4.88,   4.94,   4.68,   4.53,   4.85,   4.46,   4.36],
+                [6.01,  6.11,   6.78,   7.26,   9.37,   7.47,   7.00,   6.30,   6.15,   7.41,   7.76,   7.34,   7.25],
+                [4.91,  4.97,   4.87,   5.34,   7.47,   7.08,   6.42,   5.86,   6.26,   4.31,   4.57,   4.22,   4.14],
+                [4.89,  4.97,   5.01,   4.88,   7.00,   6.42,   7.14,   7.63,   5.26,   4.31,   4.68,   4.32,   4.27],
+                [4.85,  4.94,   5.05,   4.94,   6.30,   5.86,   7.63,   6.82,   5.83,   5.10,   4.59,   4.31,   4.20],
+                [4.55,  4.70,   4.87,   4.68,   6.15,   6.26,   5.26,   5.83,   6.39,   5.43,   4.96,   4.11,   4.03],
+                [4.48,  4.59,   4.63,   4.53,   7.41,   4.31,   4.31,   5.10,   5.43,   6.08,   5.63,   4.61,   3.88],
+                [4.68,  4.81,   4.86,   4.85,   7.76,   4.57,   4.68,   4.59,   4.96,   5.63,   6.42,   5.46,   4.77],
+                [4.33,  4.56,   4.59,   4.46,   7.34,   4.22,   4.32,   4.31,   4.11,   4.61,   5.46,   5.79,   4.49],
+                [4.30,  4.45,   4.48,   4.36,   7.25,   4.14,   4.27,   4.20,   4.03,   3.88,   4.77,   4.49,   5.65]]; 
+
+
+fn card_value_to_my_crib(rank1: usize, rank2: usize) -> f32 {    
+    VALUE_MY_CRIB[rank1][rank2]
+}
+
+fn card_value_to_your_crib(rank1: usize, rank2: usize) -> f32 {    
+    return VALUE_YOUR_CRIB[rank1][rank2];
+}
+
+
+/// hand has 6 cards and is passed in by the client
+/// heldCards has 4 cards and is generated via permutation
+/// this returns the 2 cards that are in the hand but not the crib
+/// 
+fn get_crib_cards(full_hand_of_six: &Vec<Card>, kept_cards: &Vec<Card>) -> Vec<Card> {
     let mut send_to_crib = Vec::<Card>::new();
 
-    for h in local_hand.iter() {
-        if !held_cards.contains(h) {
-            send_to_crib.push(*h);
+    for card in full_hand_of_six.iter() {
+        if !kept_cards.contains(card) {
+            send_to_crib.push(*card);
         }
     }
     send_to_crib
 }
-/**
- *  called during counting phase
- *  this api looks at the cards that have already been played and then the cards that could be played and tries to pick the right one
- *
- *  this is where "strategy" is implemented as selecting what cards to give to the crib is straightforward probability whereas counting
- *  cards is largely a function of anticipating what the other player is going to play -- e.g. if you have a 2 and a 3, you might play the
- *  2 hoping that the other player has only cards with value = 10, so that you can play your 3 and get two points for the 15.  But the other
- *  player knows this is a normal thing to do, so by playing a 2 you imply you also have a 3.  So maybe the right card to play is a 4 so that the
- *  apponent plays the 3 to get the run (2, 4, 3) and 3 points - and then bam! -- you play an Ace to get 4 points.  and so on.
- *
- *  my strategy for this is to implement it the way I play the game.  by its nature it is a bunch of "if this then that" calls, so this function
- *  tends to be very long and very experimental.  I have added logic in the past and then tested it by playing millions (literally) of games of
- *  one algorithm against the other to see if it really works (it takes about 20 seconds to run a million games on a beefy PC...)
- *
- *
- */
+
+/// called during counting phase
+/// this api looks at the cards that have already been played and then the cards that could be played and tries to pick the right one
+///
+/// this is where "strategy" is implemented as selecting what cards to give to the crib is straightforward probability whereas counting
+/// cards is largely a function of anticipating what the other player is going to play -- e.g. if you have a 2 and a 3, you might play the
+/// 2 hoping that the other player has only cards with value = 10, so that you can play your 3 and get two points for the 15.  But the other
+/// player knows this is a normal thing to do, so by playing a 2 you imply you also have a 3.  So maybe the right card to play is a 4 so that the
+/// apponent plays the 3 to get the run (2, 4, 3) and 3 points - and then bam! -- you play an Ace to get 4 points.  and so on.
+///
+/// my strategy for this is to implement it the way I play the game.  by its nature it is a bunch of "if this then that" calls, so this function
+/// tends to be very long and very experimental.  I have added logic in the past and then tested it by playing millions (literally) of games of
+/// one algorithm against the other to see if it really works (it takes about 20 seconds to run a million games on a beefy PC...)
+///
+
 pub fn get_next_counted_card(
-    counted_cards: Vec<Card>,
-    mut cards_left: Vec<Card>, // needs to be mut because we .sort() it
-) -> Result<Card, Box<dyn Error>> {
-    let current_count: i32 = counted_cards.iter().map(|c| c.value).sum::<i32>();
+    played_cards: Vec<Card>,
+    mut available_cards: Vec<Card>, // needs to be mut because we .sort() it
+) -> Result<Option<Card>, CribbageError> {
+    let current_count: i32 = played_cards.iter().map(|c| c.value).sum::<i32>();
     //
     //  if you only have one card left, play it if you can
-    if cards_left.len() == 1 {
-        if current_count + cards_left[0].value <= 31 {
-            return Ok(cards_left[0]);
+    if available_cards.len() == 1 {
+        if current_count + available_cards[0].value <= 31 {
+            return Ok(Some(available_cards[0]));
         } else {
-            return Err("Go".into());
+            return Ok(None);
         }
     }
 
-    cards_left.sort(); // this is a sort by rank
+    available_cards.sort(); // this is a sort by rank
 
-    //
+    //  
     //  here is the first strategic decision - this algorithm will take points if they are available.  for example, when
     //  humans play, they might decide to defer points (say a pair) in order to get the opponent to start a run.  e.g. if cards_played is something like
     //  a 2, then it would be common for that person to also have a 3.  they played the 2 hoping that a card of value 10 would be played and then they
@@ -107,8 +175,8 @@ pub fn get_next_counted_card(
     let mut max: i32 = -1;
     let mut card_to_play = Card::new(Rank::Unknown, Suit::Unknown);
     let mut playable_cards: Vec<Card> = Vec::new();
-    for potential_card in cards_left.as_slice() {
-        if let Ok(s) = score_counting_cards_played(counted_cards.as_slice(), *potential_card) {
+    for potential_card in available_cards.as_slice() {
+        if let Ok(s) = score_counting_cards_played(played_cards.as_slice(), *potential_card) {
             if max < s.total_score as i32 {
                 // innovation idea:  if you can play 2 cards and get the same score, which one should you play?
                 max = s.total_score as i32;
@@ -121,19 +189,26 @@ pub fn get_next_counted_card(
 
     if playable_cards.is_empty() {
         // this means we have no valid cards to play
-        return Err("Go".into());
+        return Ok(None);
     }
+
+    //
+    //  if there is only one card that can be played, return it
+    if playable_cards.len() == 1 {
+        return Ok(Some(playable_cards[0]));
+    }
+
     //
     //  get the most points - innovate here and pick the *best* one, not necessarily the one with most points!
     if max > 0 {
-        return Ok(card_to_play);
+        return Ok(Some(card_to_play));
     }
     //
     //  we can play, but we can't get points.
 
     //
     //  find all combinations of 2 cards in the cards I have left...
-    let two_card_combi = all_combinations_of_size(playable_cards, 2, 2);
+    let two_card_combi = all_combinations_of_size(playable_cards.clone(), 2, 2);
     //
     //  we only want to interate through the 2 card combinations once, so
     //  we set a strategic weight to pick between the various scenarios and
@@ -146,10 +221,10 @@ pub fn get_next_counted_card(
         if cards.len() != 2 {
             panic!("all_combinations_of_min_size returned the wrong size Vec!");
         }
-        cards.sort();
+        cards.sort(); // this sort might not be needed, but i'm not sure if all_combinations_of_size guarantees to returns sorted if the input was sorted
         if cards[0].rank == cards[1].rank
             && current_count + 3 * cards[0].value <= 31
-            && strategic_weight < 10
+            && strategic_weight < 10 && cards[1].value != 5
         {
             //
             //  this means that we have a pair and if the opponent plays the same card to get a pair, we can play our second to get 6 points
@@ -220,64 +295,70 @@ pub fn get_next_counted_card(
 
     if strategic_weight > 0 {
         if card_to_play.rank == Rank::Unknown {
-            panic!("strategic weight is set but the card_to_play is not");
+            panic!("strategic weight is set but the card_to_play is not not");
         }
-        return Ok(card_to_play);
+        return Ok(Some(card_to_play));
     }
     //
     //  if the last card (the highest value) is not a 5, return it
     //
-    if cards_left[cards_left.len() - 1].value != 5 {
-        return Ok(cards_left[cards_left.len() - 1]);
+    if playable_cards[playable_cards.len() - 1].value != 5 {
+        return Ok(Some(playable_cards[playable_cards.len() - 1]));
     }
     //
     //  if it is a 5, return the next highest one -- we know it is not a pair because if it was, we'd have played it based on what we have above
     //  we also know that we have at least two cards, because if there was only one, we would have already picked it.
-    Ok(cards_left[cards_left.len() - 2])
+    Ok(Some(playable_cards[playable_cards.len() - 2]))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::cards::{Card, Rank::*, Suit as Of};
-    use card as c;
+     use crate::new_card as c;
 
     macro_rules! test_case {
         (
-        $name:ident,
-        $counted_cards:expr,
-        $cards_left:expr,        
-        $expected_card:expr,   
-        $expected_go:literal,             
+    $name:ident,
+    $counted_cards:expr,
+    $cards_left:expr,
+    $expected_card:expr,
+    $expected_go:literal,
+    $negative_test:literal        
     ) => {
             #[test]
             fn $name() {
+
                 let result = super::get_next_counted_card($counted_cards, $cards_left);
-                match result {
+                match result { // is there an error?
                     Err(e) => {
                         println!("an error returned: {:?}", e);
-                        if ($expected_go == false) {
-                            assert!($expected_go, "Unexpected Go!");
+                        if ($negative_test == false) {
+                            assert!($negative_test, "Unexpected Fail!");
                         }
                     }
-                    Ok(card) => {
-                        println!("card returned: {}", card.name());
-                        assert_eq!(
-                            card.name(),
-                            $expected_card.name(),
-                            "unexpected card returned: {}.  expected: {}",
-                            card.name(),
-                            $expected_card.name()
-                        );
-                    }
+                    Ok(card) => match card { // did I get a card back
+                        Some(card) => {
+                            println!("card returned: {}", card.name());
+                            assert_eq!(
+                                card.name(),
+                                $expected_card.name(),
+                                "unexpected card returned: {}.  expected: {}",
+                                card.name(),
+                                $expected_card.name()
+                            );
+                        }
+                        None => {
+                            if ($expected_go == false) {
+                                assert!($expected_go, "Unexpected Go!");
+                            }
+                        }
+                    },
                 }
             }
         };
     }
-    //
-    //    Testing the pick cards agorithm.  this is a little strange because innovation will cause different cards to be picked and then
-    //    we'll have to update the tests.
-    //
+
     test_case!(
         first_card,
         [].to_vec(),
@@ -290,7 +371,9 @@ mod tests {
         .to_vec(),
         c!(Four, Of::Spades),
         false,
+        false
     );
+
     test_case!(
         second_card_hit_fifteen,
         [c!(Four, Of::Spades), c!(Ten, Of::Diamonds)].to_vec(),
@@ -301,8 +384,9 @@ mod tests {
         ]
         .to_vec(),
         c!(Ace, Of::Spades),
-        false,
+        false,false
     );
+
     test_case!(
         hit_31,
         [
@@ -314,8 +398,9 @@ mod tests {
         .to_vec(),
         [c!(Six, Of::Spades), c!(Jack, Of::Hearts)].to_vec(),
         c!(Six, Of::Spades),
-        false,
+        false,false
     );
+
     test_case!(
         induce_run,
         [c!(Four, Of::Diamonds)].to_vec(),
@@ -327,8 +412,9 @@ mod tests {
         ]
         .to_vec(),
         c!(Three, Of::Spades),
-        false,
+        false,false
     );
+
     test_case!(
         run_of_4,
         [
@@ -344,7 +430,7 @@ mod tests {
         ]
         .to_vec(),
         c!(Five, Of::Spades),
-        false,
+        false,false
     );
 
     test_case!(
@@ -358,7 +444,7 @@ mod tests {
         ]
         .to_vec(),
         c!(Jack, Of::Spades),
-        false,
+        false,false
     );
 
     test_case!(
@@ -371,7 +457,7 @@ mod tests {
         ]
         .to_vec(),
         c!(Jack, Of::Hearts),
-        false,
+        false,false
     );
 
     test_case!(
@@ -384,7 +470,7 @@ mod tests {
         .to_vec(),
         [c!(Six, Of::Hearts), c!(Five, Of::Spades),].to_vec(),
         c!(Jack, Of::Hearts),
-        true,
+        true,false
     );
 
     #[test]
@@ -394,14 +480,25 @@ mod tests {
         let mut hand: Vec<Card> = Vec::new();
 
         for card_name in test_hand.split(',') {
-            hand.push(Card::from_string(card_name));
+            hand.push(Card::from_string(card_name).unwrap());
         }
 
         // execute the method under test
         let crib = select_crib_cards(&hand, true);
 
-        // returned crib len should equal 3 cards given the inputs
-        assert_eq!(crib.len(), 3);
+        // expect an error
+        match crib {
+            Ok(_) => {
+                assert!(false, "this should be an error");
+            }
+            Err(e) => {
+                assert_eq!(
+                    e.error_kind,
+                    CribbageErrorKind::BadHand,
+                    "shoudl be a bad hand"
+                );
+            }
+        };
     }
 
     #[test]
@@ -413,11 +510,11 @@ mod tests {
         let mut held: Vec<Card> = Vec::new();
 
         for card_name in test_hand.split(',') {
-            hand.push(Card::from_string(card_name));
+            hand.push(Card::from_string(card_name).unwrap());
         }
 
         for held_name in held_cards.split(',') {
-            held.push(Card::from_string(held_name));
+            held.push(Card::from_string(held_name).unwrap());
         }
 
         // execute the method under test
@@ -436,11 +533,11 @@ mod tests {
         let mut held: Vec<Card> = Vec::new();
 
         for card_name in test_hand.split(',') {
-            hand.push(Card::from_string(card_name));
+            hand.push(Card::from_string(card_name).unwrap());
         }
 
         for held_name in held_cards.split(',') {
-            held.push(Card::from_string(held_name));
+            held.push(Card::from_string(held_name).unwrap());
         }
 
         // execute the method under test

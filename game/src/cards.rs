@@ -1,32 +1,16 @@
 //! `card` presents an interface for working with standard playing cards.
 //! Only the cards required to represent the game cribbage are supported.
 
-#![allow(dead_code)]
-// this warning is on by default, but I like the explicit nature of setting the value
-#![allow(clippy::redundant_static_lifetimes)]
-#![allow(clippy::redundant_field_names)]
-
+use crate::cribbage_errors::{CribbageError, CribbageErrorKind};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use strum::AsStaticRef;
-use strum_macros::AsStaticStr;
-use strum_macros::EnumIter;
-use strum_macros::EnumString;
+use strum::IntoEnumIterator;
+use strum_macros::{EnumIter, EnumString};
 
 /// `Suit` represents the standard playing card suits and an `Unknown` value
 /// that is useful for some algorithms over cards.
 #[derive(
-    Copy,
-    Clone,
-    EnumString,
-    EnumIter,
-    AsStaticStr,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
+    Copy, Clone, EnumString, EnumIter, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub enum Suit {
     Clubs = 1,
@@ -37,18 +21,7 @@ pub enum Suit {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    EnumString,
-    EnumIter,
-    AsStaticStr,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
+    Copy, Clone, EnumString, EnumIter, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 /// `Rank` represents the standard playing card ranks and an `Unknown` value
 /// that is useful for some algorithms over cards.
@@ -121,7 +94,7 @@ impl std::fmt::Display for Card {
 
 impl Card {
     pub fn name(&self) -> String {
-        format!("{}Of{}", self.rank.as_static(), self.suit.as_static())
+        format!("{:?}Of{:?}", self.rank, self.suit)
     }
 
     pub fn new(rank: Rank, suit: Suit) -> Card {
@@ -144,34 +117,89 @@ impl Card {
         }
     }
 
-    pub fn from_string(card_as_string: &str) -> Self {
+    pub fn default() -> Card {
+        Card {
+            rank: Rank::Unknown,
+            value: 0,
+            suit: Suit::Unknown,
+        }
+    }
+
+    //
+    //  given an index into a deck, return the card.
+    //  assume a form of the deck where index / 13 where the whole number is the suit and the remainder is the rank
+    pub fn from_index(index: usize) -> Card {
+        let div = index / 13usize;
+        let suit = match Suit::iter().nth(div) {
+            Some(suit) => suit,
+            None => {
+                panic!("Bad index passed into from_index");
+            }
+        };
+        let remainder = index % 13;
+        let rank = match Rank::iter().nth(remainder) {
+            Some(rank) => rank,
+            None => {
+                panic!("Bad index passed into from_index");
+            }
+        };
+
+        let value: i32 = if remainder >= 9 { 10 } else { remainder + 1 } as i32; // the remainder is 0 based and the value is 1 based
+
+        Card { rank, value, suit }
+    }
+
+    pub fn from_string(card_as_string: &str) -> Result<Self, CribbageError> {
         let tokens = card_as_string.split("Of").collect::<Vec<_>>();
         if tokens.len() != 2 {
-            panic!(
-                "\t\t{:?} is an invalid Card because it couldn't be split by 'Of'",
+            let msg = format!(
+                "{:?} is an invalid Card because it couldn't be split by 'Of'",
                 card_as_string
             );
-        }
+            return Err(CribbageError::new(CribbageErrorKind::ParseError, msg));
+        };
 
-        let rank: Rank = tokens[0].parse().unwrap_or_else(|_| {
-            panic!(
-                "\t\t\tError Parsing ordinal in: {:?}. {:?} is invalid",
-                card_as_string, tokens[0]
-            );
-        });
+        let rank: Rank = match tokens[0].parse() {
+            Ok(rank) => rank,
+            Err(_) => {
+                return Err(CribbageError::new(
+                    CribbageErrorKind::ParseError,
+                    format!(
+                        "Error Parsing ordinal in: {:?}. {:?} is invalid",
+                        card_as_string, tokens[0]
+                    )
+                    .into(),
+                ));
+            }
+        };
 
-        let suit: Suit = tokens[1].parse().unwrap_or_else(|_| {
-            panic!(
-                "\t\t\tError Parsing suit in: {:?}. {:?} is invalid",
-                card_as_string, tokens[1]
-            );
-        });
+        let suit: Suit = match tokens[1].parse() {
+            Ok(suit) => suit,
+            Err(_) => {
+                return Err(CribbageError::new(
+                    CribbageErrorKind::ParseError,
+                    format!(
+                        "Error Parsing suit in: {:?}. {:?} is invalid",
+                        card_as_string, tokens[1]
+                    )
+                    .into(),
+                ));
+            }
+        };
 
-        Card::new(rank, suit)
+        Ok(Card::new(rank, suit))
+    }
+
+    pub fn random_card() -> String {
+        let mut rng = rand::thread_rng();
+        let suit: Suit = SUITS[rng.gen_range(0..3)];
+        let rank: Rank = RANKS[rng.gen_range(0..12)];
+        format!("{:?}Of{:?}", rank, suit)
     }
 }
 #[allow(unused_macros)]
-macro_rules! card {
+#[macro_export]
+macro_rules! new_card {
     ($rank:expr, $suit:expr) => {{
         Card::new($rank, $suit)
     }};
