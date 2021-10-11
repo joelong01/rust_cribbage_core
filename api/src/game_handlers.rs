@@ -59,32 +59,25 @@ pub async fn cut_cards_repeat(cards: Path<String>) -> impl Responder {
         return HttpResponse::BadRequest()
             .body("there should be two cards seperated by a ',' such as '1,2'");
     }
-    let first = match tokens[0].parse::<usize>() {
-        Ok(first) => first,
-        Err(_) => {
+    let pair = match (tokens[0].parse::<usize>(), tokens[1].parse::<usize>()) {
+        (Ok(first), Ok(second)) => (first, second),
+        _ => {
             return HttpResponse::BadRequest()
                 .body("there should be two numbers seperated by a ',' such as '1,2'");
         }
     };
-    let second = match tokens[1].parse::<usize>() {
-        Ok(second) => second,
-        Err(_) => {
-            return HttpResponse::BadRequest()
-                .body("there should be two numbers seperated by a ',' such as '1,2'");
-        }
-    };
-    match CutCards::new(first, second) {
+    match CutCards::new(pair.0, pair.1) {
         Ok(cc) => {
             let response = CutCardResponse {
                 CutCards: cc,
-                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), first, second),
+                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), pair.0, pair.1),
             };
-            return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
+            HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
         }
         Err(e) => {
-            return HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap());
+            HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap())
         }
-    };
+    }
 }
 
 ///  score the hand (or crib)
