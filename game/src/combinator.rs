@@ -68,7 +68,6 @@ pub fn all_combinations_of_min_size<T: Copy>(
     }
 }
 
-#[allow(dead_code)]
 /// Returns an iterator that lazily iterates over all unique combinations
 /// of elements in `vector` with no more than `max` elements and no attempt at
 /// specific ordering of the combinations

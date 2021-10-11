@@ -1,12 +1,12 @@
 //! `score` provides a functional approach to tallying the score for a
 //! cribbage hand.
 
-#![allow(unused_imports)]
-use crate::cards::{Card, Hand, Rank, Suit};
-use crate::combinator::all_combinations_of_min_size;
-use serde::{Serialize, Deserialize};
+use crate::{
+    cards::{Card, Hand, Rank, Suit},
+    combinator::all_combinations_of_min_size,
+};
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
-use std::sync::mpsc::RecvTimeoutError;
 
 /// Cribbage has five basic hand scoring combinations.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -336,8 +336,6 @@ impl Combination {
             CombinationName::FlushOfFive => 5,
             CombinationName::RoyalPair => 6,
             CombinationName::DoubleRoyalPair => 12,
-            //
-            //  these are counting only -- not sure they are needed here?
             CombinationName::RunOfSix => 6,
             CombinationName::RunOfSeven => 7,
             CombinationName::ThirtyOne => 2,
@@ -348,7 +346,7 @@ impl Combination {
 #[cfg(test)]
 mod tests {
     use crate::cards::{Card, Rank::*, Suit as Of};
-    use card as c;
+    use crate::new_card as c;
 
     macro_rules! test_case {
         (

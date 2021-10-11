@@ -1,6 +1,6 @@
 # CribbageRust
 
-This project implements a set of REST APIs that allow you to build a cribbage application.  Cards are spelled as NameOfSuit (e.g. AceOfSpades or KingOfClubs).
+This project implements a set of WEB APIs that allow you to build a cribbage application.  Cards are spelled as NameOfSuit (e.g. AceOfSpades or KingOfClubs).
 
 This is a Rust port of [https://github.com/joelong01/CribbageJS](https://github.com/joelong01/CribbageJS)
 

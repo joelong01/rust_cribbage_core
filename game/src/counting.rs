@@ -1,10 +1,8 @@
 use crate::cards::Card;
 use crate::cribbage_errors::{CribbageError, CribbageErrorKind};
 use crate::scoring::{score_run, Combination, CombinationKind, Score};
-use std::error::Error;
 
 /// Calculates the score during the counting phase where played_cards have already been played and card is now played
-///
 ///
 pub fn score_counting_cards_played(
     played_cards: &[Card],
@@ -86,7 +84,7 @@ pub fn score_counting_cards_played(
 #[cfg(test)]
 mod tests {
     use crate::cards::{Card, Rank::*, Suit as Of};
-    use card as c;
+    use crate::new_card as c;
 
     macro_rules! test_case {
         ($name:ident,$cards_played:expr,$card:expr,$expected_score:literal, $expect_error:literal) => {

@@ -1,53 +1,57 @@
-use crate::client_structs::{
-    ClientCard, CountedCardResponse, CutCardResponse, CutCards, ParsedHand, RandomHandResponse,
-    ScoreResponse,
+use crate::{
+    client_structs::{
+        ClientCard, CountedCardResponse, CutCardResponse, CutCards, ParsedHand, RandomHandResponse,
+        ScoreResponse,
+    },
+    HOST_NAME,
 };
 use actix_web::{web::Path, HttpResponse, Responder};
-use cribbage_library::cards::Card;
-use cribbage_library::counting::score_counting_cards_played;
-use cribbage_library::cribbage_errors::{CribbageError, CribbageErrorKind};
-use cribbage_library::scoring::{score_hand as scorehand, Score};
-use cribbage_library::select_cards::{get_next_counted_card, select_crib_cards};
+use cribbage_library::{
+    cards::Card,
+    counting::score_counting_cards_played,
+    cribbage_errors::{CribbageError, CribbageErrorKind},
+    scoring::{score_hand as scorehand, Score},
+    select_cards::{get_next_counted_card, select_crib_cards},
+};
 use rand::prelude::{Rng, SliceRandom};
 
-const HOST_NAME: &'static str = "localhost:8088/api"; // important:  no ending '/'
-
-//
-//  cut the cards to see who goes first
-//
-//  sample URLs:
-//              http://localhost:8080/api/cutcards
-//
-//  returns: the two cut cards and the repeat URL.  the client is written to assume a shared notion of the deck
-//           so we just return 2 numbers bewtween 0 and 51
-//
+/// cut the cards to see who goes first
+///
+///  sample URLs:
+///              http:///localhost:8080/api/cutcards
+///
+///  returns: the two cut cards and the repeat URL.  the client is written to assume a shared notion of the deck
+///           so we just return 2 numbers bewtween 0 and 51
 pub async fn cut_cards() -> impl Responder {
     let mut rng = rand::thread_rng();
     let first = rng.gen_range(0..51) as usize;
-    let mut second: usize;
-    loop {
+    let mut second = rng.gen_range(0..51) as usize;
+    while first == second {
         second = rng.gen_range(0..51) as usize;
-        if first != second {
-            break;
-        }
     }
-    let cc = CutCards::new(first, second);
-    let response = CutCardResponse {
-        CutCards: cc,
-        RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME, first, second),
-    };
 
-    HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
+    let _cc: CutCards = match CutCards::new(first, second) {
+        Ok(cc) => {
+            let response = CutCardResponse {
+                CutCards: cc,
+                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), first, second),
+            };
+            return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap());
+        }
+    };
 }
-//
-//  cut the cards to see who goes first - pass in the random numbers that you get the same result
-//  the last time the api was called. useful for testing.
-//
-//  sample URLs:
-//              http://localhost:8080/api/cutcards/1,8
-//
-//  returns: the two cut cards
-//
+
+/// cut the cards to see who goes first - pass in the random numbers that you get the same result
+/// the last time the api was called. useful for testing.
+///
+/// sample URLs:
+///              http://localhost:8080/api/cutcards/1,8
+///
+/// returns: the two cut cards
+///
 pub async fn cut_cards_repeat(cards: Path<String>) -> impl Responder {
     let cards = cards.into_inner();
     let tokens: Vec<&str> = cards.split(",").collect();
@@ -69,26 +73,31 @@ pub async fn cut_cards_repeat(cards: Path<String>) -> impl Responder {
                 .body("there should be two numbers seperated by a ',' such as '1,2'");
         }
     };
-    let cc = CutCards::new(first, second);
-    let response = CutCardResponse {
-        CutCards: cc,
-        RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME, first, second),
+    match CutCards::new(first, second) {
+        Ok(cc) => {
+            let response = CutCardResponse {
+                CutCards: cc,
+                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), first, second),
+            };
+            return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
+        }
+        Err(e) => {
+            return HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap());
+        }
     };
-
-    HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
 }
-//
-//  score the hand (or crib)
-//
-//  sample URLs:
-//              localhost:8088/api/scorehand/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds/FourOfDiamonds/false
-//              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfDiamonds/false  (should be a flush)
-//              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfDiamonds/true   (no flush - need 5 of same suit in crib)
-//              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfHearts/true     (should be a flush)
-//              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,FourOfHearts,FourOFClubs/SixOfDiamonds/true     (bad card)
-//              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,FourOfHearts,FourOfClubs/SixOfDiamonds/true     (double double run with 15s - 24 points)
-//              localhost:8088/api/scorehand/ThreeOfSpades,TwoOfSpades,QueenOfHearts,QueenOfClubs/AceOfHearts/false
-//
+
+///  score the hand (or crib)
+///
+///  sample URLs:
+///              localhost:8088/api/scorehand/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds/FourOfDiamonds/false
+///              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfDiamonds/false  (should be a flush)
+///              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfDiamonds/true   (no flush - need 5 of same suit in crib)
+///              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,SevenOfHearts,EightOfHearts/NineOfHearts/true     (should be a flush)
+///              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,FourOfHearts,FourOFClubs/SixOfDiamonds/true     (bad card)
+///              localhost:8088/api/scorehand/FiveOfHearts,SixOfHearts,FourOfHearts,FourOfClubs/SixOfDiamonds/true     (double double run with 15s - 24 points)
+///              localhost:8088/api/scorehand/ThreeOfSpades,TwoOfSpades,QueenOfHearts,QueenOfClubs/AceOfHearts/false
+///
 pub async fn score_hand(path: Path<(String, String, bool)>) -> impl Responder {
     let path = path.into_inner();
     let parsed_hand = match ParsedHand::from_string(path.0) {
@@ -111,16 +120,16 @@ pub async fn score_hand(path: Path<(String, String, bool)>) -> impl Responder {
 
     HttpResponse::Ok().body(serde_json::to_string(&score_response).unwrap())
 }
-//
-//  given 6 cards, return 2.  if isMyCrib is true, then optimize to make the hand + crib have the most points possible
-//
-//  sample URLs:
-//   localhost:8088/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/false
-//   localhost:8088/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/true
-//   localhost:8088/api/getcribcards/FourOfHearts,FiveOfHearts,SixOfSpades,JackOfHearts,QueenOfHearts,SixOfDiamonds/true
-//   localhost:8088/api/getcribcards/FourOfHearts,FiveOfHearts,SixOfSpades,JackOfHearts,QueenOfHearts,SixOfDiamonds/false
-//
-//
+
+///  given 6 cards, return 2.  if isMyCrib is true, then optimize to make the hand + crib have the most points possible
+///
+///  sample URLs:
+///   localhost:8088/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/false
+///   localhost:8088/api/getcribcards/FiveOfHearts,FiveOfClubs,FiveOfSpades,JackOfDiamonds,SixOfClubs,FourOfDiamonds/true
+///   localhost:8088/api/getcribcards/FourOfHearts,FiveOfHearts,SixOfSpades,JackOfHearts,QueenOfHearts,SixOfDiamonds/true
+///   localhost:8088/api/getcribcards/FourOfHearts,FiveOfHearts,SixOfSpades,JackOfHearts,QueenOfHearts,SixOfDiamonds/false
+///
+///
 pub async fn get_crib(path: Path<(String, bool)>) -> impl Responder {
     let path = path.into_inner();
 
@@ -146,15 +155,14 @@ pub async fn get_crib(path: Path<(String, bool)>) -> impl Responder {
     HttpResponse::Ok().body(serde_json::to_string(&result).unwrap())
 }
 
-//
-//  URL example:
-//          localhost:8088/api/getnextcountedcard/AceOfSpades,AceOfHearts,TwoOfClubs,TenOfDiamonds/0
-//          localhost:8088/api/getnextcountedcard/FiveOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
-//          localhost:8088/api/getnextcountedcard/SixOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
-//          localhost:8088/api/getnextcountedcard/SixOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
-//
-//  Note that the last parameters contains all the cards that have already been counted, which means it starts empty, so there are two routes.
-//
+///  URL example:
+///          localhost:8088/api/getnextcountedcard/AceOfSpades,AceOfHearts,TwoOfClubs,TenOfDiamonds/0
+///          localhost:8088/api/getnextcountedcard/FiveOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
+///          localhost:8088/api/getnextcountedcard/SixOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
+///          localhost:8088/api/getnextcountedcard/SixOfClubs,QueenOfDiamonds/25/ThreeOfDiamonds,TenOfClubs,TwoOfSpades,QueenOfSpades
+///
+///  Note that the last parameters contains all the cards that have already been counted, which means it starts empty, so there are two routes.
+///
 pub async fn get_first_counted_card(path: Path<(String, u32)>) -> impl Responder {
     let path = path.into_inner();
     let available_cards = match ParsedHand::from_string(path.0) {
@@ -168,6 +176,9 @@ pub async fn get_first_counted_card(path: Path<(String, u32)>) -> impl Responder
     return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
 }
 
+/// returns the next counted card - distinct from the first counted card
+/// in that it also gets the CSV list of cards played
+///
 pub async fn next_counted_card(path: Path<(String, u32, String)>) -> impl Responder {
     let path = path.into_inner();
     let available_cards = match ParsedHand::from_string(path.0) {
@@ -188,6 +199,8 @@ pub async fn next_counted_card(path: Path<(String, u32, String)>) -> impl Respon
     return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
 }
 
+/// helper function that gets the counted card and then formats the proper response
+///
 fn internal_get_next_counted_card(
     played_cards: Vec<Card>,
     available_cards: Vec<Card>,
@@ -219,6 +232,8 @@ fn internal_get_next_counted_card(
     };
 }
 
+/// this gets routed when the URL does not have any cards that have already been played
+/// there are never any points scored on the first card.
 pub async fn score_first_counted_card(path: Path<(String, u32)>) -> impl Responder {
     let path = path.into_inner();
     if path.1 != 0 {
@@ -232,6 +247,8 @@ pub async fn score_first_counted_card(path: Path<(String, u32)>) -> impl Respond
     return HttpResponse::Ok().body(serde_json::to_string(&ScoreResponse::default()).unwrap());
 }
 
+/// routed to when the player plays a card and there are already some cards played.
+///
 pub async fn score_counted_cards(path: Path<(String, u32, String)>) -> impl Responder {
     let path = path.into_inner();
     let played_cards = match ParsedHand::from_string(path.2) {
@@ -261,6 +278,8 @@ pub async fn score_counted_cards(path: Path<(String, u32, String)>) -> impl Resp
     };
 }
 
+/// helper function for getting a random hand
+///
 fn get_random_hand_internal(
     is_computer_crib: bool,
     cards: Vec<usize>,
@@ -302,11 +321,18 @@ fn get_random_hand_internal(
 
     response.RepeatUrl = format!(
         "{}/getrandomhand/{}/{}/{}",
-        HOST_NAME, is_computer_crib, indices, cards[12]
+        HOST_NAME.get().unwrap(),
+        is_computer_crib,
+        indices,
+        cards[12]
     );
     Some(response)
 }
 
+/// routed to when a new hand is needed.
+/// only returns the 13 cards (6 for computer, 6 for player, 1 shared)
+/// also returns the cards that the computer should give to the crib
+///
 pub async fn get_random_hand(path: Path<bool>) -> impl Responder {
     let is_computer_crib = path.into_inner();
 
@@ -329,6 +355,9 @@ pub async fn get_random_hand(path: Path<bool>) -> impl Responder {
 
     HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
 }
+
+/// useful for debugging the client - this will give the same hand that was returned from get_random_hand
+///
 pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl Responder {
     let path = path.into_inner();
     let is_computer_crib = path.0;
@@ -388,21 +417,21 @@ pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl 
 
     HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
 }
-/**
- *  Tests for the Web API.  The actual logic of the game is already tested in the unit tests for that part of the project
- *
- *  these tests test the "shape" of the Web API - making sure that serialization/deserialization works (by simply using it
- *  in the tests) and that the response we get back are non-empty or have other reasonable values.
- *
- *  reproducibility isn't something the game uses, but is verified here to enforce the correctness of the repeat URL
- *
- */
+
+///  Tests for the Web API.  The actual logic of the game is already tested in the unit tests for that part of the project
+///
+///  these tests test the "shape" of the Web API - making sure that serialization/deserialization works (by simply using it
+///  in the tests) and that the response we get back are non-empty or have other reasonable values.
+///
+//  reproducibility isn't something the game uses, but is verified here to enforce the correctness of the repeat URL
+///
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::game_handlers;
+    use crate::{game_handlers, safe_set_port, HOST_NAME, PORT};
     use actix_web::{test, web, App};
     use cribbage_library::scoring::CombinationName;
+    use std::env;
 
     macro_rules! get_repeat_url {
         ($url: expr) => {{
@@ -460,14 +489,18 @@ mod tests {
         }};
     }
 
-    //
-    //  this test gets the cut cards and the parses out the repeat URL to call cutcards again
-    //  it verifies that it gets the same results back.
-    //
-    //  this also verifies that the json serialize/deserialize of the CutCardResponse works correctly
-    //
+    ///
+    ///  this test gets the cut cards and the parses out the repeat URL to call cutcards again
+    ///  it verifies that it gets the same results back.
+    ///
+    ///  this also verifies that the json serialize/deserialize of the CutCardResponse works correctly
+    ///
     #[actix_rt::test]
     async fn cut_cards() {
+        //
+        //  main() is not called for these tests, so we have to set the port and hostname here.
+        safe_set_port!();
+
         //
         //  a hard won learning: the route below does *not* start with a "/"
         //  but the URI to call it must start with a "/"
@@ -484,15 +517,18 @@ mod tests {
         //  this is the URI that has to start with a "/"
         let req = test::TestRequest::get().uri("/api/cutcards").to_request();
         let ccr: CutCardResponse = test::read_response_json(&mut app, req).await;
+
         test_repeatability!(app, ccr, ccr.RepeatUrl);
-        //
+
         //  make sure that we are actually getting data back
         assert_ne!(ccr.RepeatUrl, "");
         assert_ne!(ccr.CutCards.Computer.cardName, "");
         assert_ne!(ccr.CutCards.Player.cardName, "");
     }
+
     #[actix_rt::test]
     async fn test_random_hand() {
+        safe_set_port!();
         let mut app = test::init_service(
             App::new()
                 .route(
@@ -519,6 +555,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_score_counted_cards() {
+        safe_set_port!();
         let mut app = test::init_service(
             App::new()
                 .route(
@@ -555,6 +592,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_score_hand() {
+        safe_set_port!();
         let mut app = test::init_service(App::new().route(
             "api/scorehand/{hand}/{shared_card}/{is_crib}",
             web::get().to(game_handlers::score_hand),
@@ -582,6 +620,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_get_crib_hand() {
+        safe_set_port!();
         let mut app = test::init_service(App::new().route(
             "api/getcribcards/{hand}/{my_crib}",
             web::get().to(game_handlers::get_crib),
@@ -605,6 +644,7 @@ mod tests {
 
     #[actix_rt::test]
     async fn test_get_next_counted_card() {
+        safe_set_port!();
         let mut app = test::init_service(
             App::new()
                 .route(
@@ -636,20 +676,20 @@ mod tests {
             true
         );
 
-        let uri = "/api/getnextcountedcard/ThreeOfClubs,TwoOfClubs/30/TenOfClubs,TenOfHearts,TenOfSpades";
+        let uri =
+            "/api/getnextcountedcard/ThreeOfClubs,TwoOfClubs/30/TenOfClubs,TenOfHearts,TenOfSpades";
         let req = test::TestRequest::get().uri(uri).to_request();
         let response: CountedCardResponse = test::read_response_json(&mut app, req).await;
         match response.countedCard {
-            Some(_) =>  {
+            Some(_) => {
                 assert_eq!(true, false, "there should be no card here!")
-            },
-                None => { 
-                    // test passes
+            }
+            None => {
+                // test passes
             }
         };
-        
+
         assert_eq!(response.Scoring.Score, 0);
         assert_eq!(response.Scoring.ScoreInfo.len(), 0);
-        
     }
 }

@@ -1,31 +1,37 @@
-use cribbage_library::cards::{Card, Rank, Suit};
-use cribbage_library::cribbage_errors::CribbageError;
-use cribbage_library::scoring::{Combination, CombinationName, Score};
+#![allow(non_snake_case)] // backwards compatibility
+use cribbage_library::{
+    cards::{Card, Rank, Suit},
+    cribbage_errors::{CribbageError, CribbageErrorKind},
+    scoring::{Combination, CombinationName, Score},
+};
 use serde::{Deserialize, Serialize};
-#[allow(dead_code)]
-#[allow(non_snake_case)] // backwards compatibility
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CutCards {
     pub Player: ClientCard,
     pub Computer: ClientCard,
 }
 impl CutCards {
-    pub fn new(p_index: usize, c_index: usize) -> CutCards {
-        CutCards {
+    pub fn new(p_index: usize, c_index: usize) -> Result<CutCards, CribbageError> {
+        if p_index > 51 || c_index > 51 {
+            return Err(CribbageError {
+                message: format!("card index can't be > 51"),
+                error_kind: CribbageErrorKind::BadCard,
+            });
+        }
+        Ok(CutCards {
             Player: ClientCard::from_card(Card::from_index(p_index), "Player".to_string()),
             Computer: ClientCard::from_card(Card::from_index(c_index), "Computer".to_string()),
-        }
+        })
     }
 }
-#[allow(dead_code)]
-#[allow(non_snake_case)] // backwards compatibility
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CutCardResponse {
     pub CutCards: CutCards,
     pub RepeatUrl: String,
 }
 
-#[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScoreInfo {
     pub ScoreName: CombinationName,
@@ -48,7 +54,6 @@ impl ScoreInfo {
     }
 }
 
-#[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScoreResponse {
     pub Score: u32,
@@ -99,13 +104,12 @@ impl ParsedHand {
     }
 }
 
-//
-//  converts a CSV of cards into a Vec<Card>
-//  returns: Vec<Card> or HttpResponse::BadRequest
-#[allow(unused_macros)]
+///
+///  converts a CSV of cards into a Vec<Card>
+///  returns: Vec<Card> or HttpResponse::BadRequest
 #[macro_export]
 macro_rules! csv_to_cards {
-    ($csv: expr) => {{
+    ($csv: expr) => {
         let mut hand: Vec<Card> = Vec::<Card>::new();
         let tokens: Vec<&str> = $csv.split(",").collect();
         let ret: Result<Vec<Card>, String>;
@@ -123,10 +127,9 @@ macro_rules! csv_to_cards {
         }
 
         Ok(hand)
-    }};
+    };
 }
 
-#[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RandomHandResponse {
     pub RandomCards: Vec<ClientCard>,
@@ -146,7 +149,6 @@ impl RandomHandResponse {
         }
     }
 }
-#[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClientCard {
     OrdinalName: Rank,
@@ -177,36 +179,8 @@ impl ClientCard {
     }
 }
 
-//
-//  struct for returning the counted card == the client expects something like this:
-//  {
-//     "countedCard": {
-//         "OrdinalName": "Ace",
-//         "Rank": 1,
-//         "Value": 1,
-//         "Suit": "Spades",
-//         "cardName": "AceOfSpades",
-//         "Owner": "shared",
-//         "Ordinal": 1
-//     },
-//     "Scoring": {
-//         "Score": 0,
-//         "ScoreInfo": []
-//     }
-// }
-//
-#[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CountedCardResponse {
     pub countedCard: Option<ClientCard>,
     pub Scoring: ScoreResponse,
-}
-#[allow(dead_code)]
-impl CountedCardResponse {
-    pub fn new() -> CountedCardResponse {
-        CountedCardResponse {
-            countedCard: None,
-            Scoring: ScoreResponse::default(),
-        }
-    }
 }

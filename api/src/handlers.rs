@@ -1,9 +1,7 @@
-#![allow(unused_imports)]
 use actix_web::{web::Path, HttpResponse, Responder};
-use azure_core::prelude::*;
-use azure_sdk_cosmos::{prelude::*, responses::ListDocumentsResponse};
+use azure_sdk_cosmos::{prelude::*, };
 use serde::{Deserialize, Serialize};
-use std::borrow::Cow;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CosmosConnectionInfo {

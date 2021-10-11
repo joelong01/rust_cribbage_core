@@ -1,36 +1,16 @@
 //! `card` presents an interface for working with standard playing cards.
 //! Only the cards required to represent the game cribbage are supported.
 
-#![allow(dead_code)]
-// this warning is on by default, but I like the explicit nature of setting the value
-#![allow(clippy::redundant_static_lifetimes)]
-#![allow(clippy::redundant_field_names)]
-
 use crate::cribbage_errors::{CribbageError, CribbageErrorKind};
-use rand::{thread_rng, Rng};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
-use strum::AsStaticRef;
 use strum::IntoEnumIterator;
-use strum_macros::AsStaticStr;
-use strum_macros::EnumIter;
-use strum_macros::EnumString;
+use strum_macros::{EnumIter, EnumString};
 
 /// `Suit` represents the standard playing card suits and an `Unknown` value
 /// that is useful for some algorithms over cards.
 #[derive(
-    Copy,
-    Clone,
-    EnumString,
-    EnumIter,
-    AsStaticStr,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
+    Copy, Clone, EnumString, EnumIter, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 pub enum Suit {
     Clubs = 1,
@@ -41,18 +21,7 @@ pub enum Suit {
 }
 
 #[derive(
-    Copy,
-    Clone,
-    EnumString,
-    EnumIter,
-    AsStaticStr,
-    Debug,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Serialize,
-    Deserialize,
+    Copy, Clone, EnumString, EnumIter, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize,
 )]
 /// `Rank` represents the standard playing card ranks and an `Unknown` value
 /// that is useful for some algorithms over cards.
@@ -100,7 +69,7 @@ const RANKS: &'static [Rank] = &[
 pub struct Card {
     pub rank: Rank, // 1..13 used for runs
     pub value: i32, // 1 - 10.  used for counting
-    pub suit: Suit,    
+    pub suit: Suit,
 }
 
 /// `Deck` is a convenience type for more fluent code.
@@ -125,7 +94,7 @@ impl std::fmt::Display for Card {
 
 impl Card {
     pub fn name(&self) -> String {
-        format!("{}Of{}", self.rank.as_static(), self.suit.as_static())
+        format!("{:?}Of{:?}", self.rank, self.suit)
     }
 
     pub fn new(rank: Rank, suit: Suit) -> Card {
@@ -229,7 +198,8 @@ impl Card {
     }
 }
 #[allow(unused_macros)]
-macro_rules! card {
+#[macro_export]
+macro_rules! new_card {
     ($rank:expr, $suit:expr) => {{
         Card::new($rank, $suit)
     }};

@@ -1,17 +1,16 @@
-#![allow(unused_imports)]
-use crate::cards::Card;
-use crate::cards::{Rank, Suit};
-use crate::combinator::all_combinations_of_size;
-use crate::counting::score_counting_cards_played;
-use crate::cribbage_errors::{CribbageError, CribbageErrorKind};
-use crate::scoring::{score_hand, Score};
-use std::error::Error;
+use crate::{   
+    cards::{Card, Rank, Suit},
+    combinator::all_combinations_of_size,
+    counting::score_counting_cards_played,
+    cribbage_errors::{CribbageError, CribbageErrorKind},
+    scoring::score_hand
+};
 
-/**
- * go through each of the 16 combinations looking for the hand
- * that will perform best based on the value of the hand plus
- * or minus the value of the crib
- */
+
+/// go through each of the 16 combinations looking for the hand
+/// that will perform best based on the value of the hand plus
+/// or minus the value of the crib
+/// 
 pub fn select_crib_cards(
     six_card_hand: &[Card],
     my_crib: bool,
@@ -107,11 +106,11 @@ fn card_value_to_your_crib(rank1: usize, rank2: usize) -> f32 {
     return VALUE_YOUR_CRIB[rank1][rank2];
 }
 
-/**
- * hand has 6 cards and is passed in by the client
- * heldCards has 4 cards and is generated via permutation
- * this returns the 2 cards that are in the hand but not the crib
-*/
+
+/// hand has 6 cards and is passed in by the client
+/// heldCards has 4 cards and is generated via permutation
+/// this returns the 2 cards that are in the hand but not the crib
+/// 
 fn get_crib_cards(full_hand_of_six: &Vec<Card>, kept_cards: &Vec<Card>) -> Vec<Card> {
     let mut send_to_crib = Vec::<Card>::new();
 
@@ -122,22 +121,21 @@ fn get_crib_cards(full_hand_of_six: &Vec<Card>, kept_cards: &Vec<Card>) -> Vec<C
     }
     send_to_crib
 }
-/**
- *  called during counting phase
- *  this api looks at the cards that have already been played and then the cards that could be played and tries to pick the right one
- *
- *  this is where "strategy" is implemented as selecting what cards to give to the crib is straightforward probability whereas counting
- *  cards is largely a function of anticipating what the other player is going to play -- e.g. if you have a 2 and a 3, you might play the
- *  2 hoping that the other player has only cards with value = 10, so that you can play your 3 and get two points for the 15.  But the other
- *  player knows this is a normal thing to do, so by playing a 2 you imply you also have a 3.  So maybe the right card to play is a 4 so that the
- *  apponent plays the 3 to get the run (2, 4, 3) and 3 points - and then bam! -- you play an Ace to get 4 points.  and so on.
- *
- *  my strategy for this is to implement it the way I play the game.  by its nature it is a bunch of "if this then that" calls, so this function
- *  tends to be very long and very experimental.  I have added logic in the past and then tested it by playing millions (literally) of games of
- *  one algorithm against the other to see if it really works (it takes about 20 seconds to run a million games on a beefy PC...)
- *
- *
- */
+
+/// called during counting phase
+/// this api looks at the cards that have already been played and then the cards that could be played and tries to pick the right one
+///
+/// this is where "strategy" is implemented as selecting what cards to give to the crib is straightforward probability whereas counting
+/// cards is largely a function of anticipating what the other player is going to play -- e.g. if you have a 2 and a 3, you might play the
+/// 2 hoping that the other player has only cards with value = 10, so that you can play your 3 and get two points for the 15.  But the other
+/// player knows this is a normal thing to do, so by playing a 2 you imply you also have a 3.  So maybe the right card to play is a 4 so that the
+/// apponent plays the 3 to get the run (2, 4, 3) and 3 points - and then bam! -- you play an Ace to get 4 points.  and so on.
+///
+/// my strategy for this is to implement it the way I play the game.  by its nature it is a bunch of "if this then that" calls, so this function
+/// tends to be very long and very experimental.  I have added logic in the past and then tested it by playing millions (literally) of games of
+/// one algorithm against the other to see if it really works (it takes about 20 seconds to run a million games on a beefy PC...)
+///
+
 pub fn get_next_counted_card(
     played_cards: Vec<Card>,
     mut available_cards: Vec<Card>, // needs to be mut because we .sort() it
@@ -155,7 +153,7 @@ pub fn get_next_counted_card(
 
     available_cards.sort(); // this is a sort by rank
 
-    //
+    //  
     //  here is the first strategic decision - this algorithm will take points if they are available.  for example, when
     //  humans play, they might decide to defer points (say a pair) in order to get the opponent to start a run.  e.g. if cards_played is something like
     //  a 2, then it would be common for that person to also have a 3.  they played the 2 hoping that a card of value 10 would be played and then they
@@ -226,7 +224,7 @@ pub fn get_next_counted_card(
         cards.sort(); // this sort might not be needed, but i'm not sure if all_combinations_of_size guarantees to returns sorted if the input was sorted
         if cards[0].rank == cards[1].rank
             && current_count + 3 * cards[0].value <= 31
-            && strategic_weight < 10
+            && strategic_weight < 10 && cards[1].value != 5
         {
             //
             //  this means that we have a pair and if the opponent plays the same card to get a pair, we can play our second to get 6 points
@@ -312,11 +310,12 @@ pub fn get_next_counted_card(
     //  we also know that we have at least two cards, because if there was only one, we would have already picked it.
     Ok(Some(playable_cards[playable_cards.len() - 2]))
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::cards::{Card, Rank::*, Suit as Of};
-    use card as c;
+     use crate::new_card as c;
 
     macro_rules! test_case {
         (
@@ -359,6 +358,7 @@ mod tests {
             }
         };
     }
+
     test_case!(
         first_card,
         [].to_vec(),
@@ -373,6 +373,7 @@ mod tests {
         false,
         false
     );
+
     test_case!(
         second_card_hit_fifteen,
         [c!(Four, Of::Spades), c!(Ten, Of::Diamonds)].to_vec(),
@@ -385,6 +386,7 @@ mod tests {
         c!(Ace, Of::Spades),
         false,false
     );
+
     test_case!(
         hit_31,
         [
@@ -398,6 +400,7 @@ mod tests {
         c!(Six, Of::Spades),
         false,false
     );
+
     test_case!(
         induce_run,
         [c!(Four, Of::Diamonds)].to_vec(),
@@ -411,6 +414,7 @@ mod tests {
         c!(Three, Of::Spades),
         false,false
     );
+
     test_case!(
         run_of_4,
         [

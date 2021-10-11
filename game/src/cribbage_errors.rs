@@ -1,7 +1,5 @@
-#![allow(unused_imports)]
 use serde::Serialize;
 
-#[allow(dead_code)]
 #[allow(non_snake_case)] // backwards compatibility
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub enum CribbageErrorKind {
@@ -10,10 +8,12 @@ pub enum CribbageErrorKind {
     BadHand,
     BadCount,
 }
+///
+/// a hopefully useful message that tells the caller why the Web API failed
 #[derive(Debug, Serialize)]
 pub struct CribbageError {
-   pub error_kind: CribbageErrorKind,
-   pub message: String,
+    pub error_kind: CribbageErrorKind,
+    pub message: String,
 }
 
 impl CribbageError {
