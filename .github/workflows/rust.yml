@@ -17,8 +17,6 @@ jobs:
               uses: actions/checkout@main
             - name: Run tests
               run: cargo test --verbose
-            - name: Look at creds
-              run: echo ${{ secrets.AZURE_CREDENTIALS }}
             - name: "Login via Azure CLI"
               uses: azure/login@v1
               with:
