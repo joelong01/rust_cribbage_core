@@ -1,0 +1,10 @@
+template: external-service
+values:
+    publicFQDN: cribbage.cloud
+    image: azurecr.io/timfpark/cribbage-api:latest
+    app: cribbage-api
+    cpu: 1
+    memory: 256M
+    replicas: 1
+    env:
+        CRIBBAGE_PORT: 80
