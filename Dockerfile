@@ -1,23 +1,30 @@
+# syntax=docker/dockerfile:1.3-labs
 FROM rust:1.55 as build
 
-WORKDIR /cribbage
+# capture dependencies
+COPY Cargo.toml Cargo.lock /app/
 
-COPY ./api ./api
-COPY ./game ./game
+RUN cargo new --lib /app/game
+COPY game/Cargo.toml /app/game/
 
-WORKDIR /cribbage/api
+RUN cargo new /app/api
+COPY api/Cargo.toml /app/api/
 
-RUN cargo build --release
+WORKDIR /app/api
+RUN --mount=type=cache,target=/usr/local/cargo/registry cargo build --release
 
-RUN mkdir -p /build
-RUN cp target/release/cribbage-api /build/
+# build the app
+COPY ./api /app/api
+COPY ./game /app/game
+RUN --mount=type=cache,target=/usr/local/cargo/registry <<EOF
+  # update timestamps to force a new build
+  touch /app/game/src/lib.rs /app/api/src/main.rs
+  cargo build --release
+EOF
 
-FROM ubuntu:18.04
+CMD ["/app/target/release/cribbage-api"]
 
-RUN apt-get update && apt-get -y upgrade
-RUN apt-get -y install openssl
-RUN apt-get -y install ca-certificates libssl-dev && rm -rf /var/lib/apt/lists/*
-
-COPY --from=build /build/cribbage-api /
-
+# slim runtime image
+FROM debian:buster-slim as app
+COPY --from=build /app/target/release/cribbage-api /cribbage-api
 CMD ["/cribbage-api"]
