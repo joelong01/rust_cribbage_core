@@ -17,19 +17,19 @@ This is a Rust port of [https://github.com/joelong01/CribbageJS](https://github.
 
 Build the project and run all unit and integration tests.
 `
-    $cargo build
+    $ cargo build
 `
 
 ## Test
 
 Compile, build and run all unit and integration tests.
 `
-    $cargo test
+    $ cargo test
 `
 
 ## Run
 
 Compule, build and run the executable.
 `
-    $cargo run
+    $ cargo run
 `
