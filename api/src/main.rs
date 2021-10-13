@@ -123,7 +123,7 @@ async fn main() -> std::io::Result<()> {
                     ),
             )
     })
-    .bind(format!("localhost:{}", port))?
+    .bind(format!("0.0.0.0:{}", port))?
     .run()
     .await
 }
