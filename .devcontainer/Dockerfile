@@ -1,7 +1,11 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.191.1/containers/rust/.devcontainer/base.Dockerfile
+# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.202.1/containers/codespaces-linux/.devcontainer/base.Dockerfile
 
-FROM mcr.microsoft.com/vscode/devcontainers/rust:0-1
+FROM mcr.microsoft.com/vscode/devcontainers/universal:1-focal
 
-# [Optional] Uncomment this section to install additional packages.
+# ** [Optional] Uncomment this section to install additional packages. **
+# USER root
+#
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
+#
+# USER codespace

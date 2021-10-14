@@ -6,5 +6,4 @@ values:
     cpu: 0.5 
     memory: 64M
     replicas: 2
-    env:
-        CRIBBAGE_PORT: 80
+    port: 8080
