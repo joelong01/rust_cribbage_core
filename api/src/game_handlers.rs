@@ -1,11 +1,8 @@
-use crate::{
-    client_structs::{
-        ClientCard, CountedCardResponse, CutCardResponse, CutCards, ParsedHand, RandomHandResponse,
-        ScoreResponse,
-    },
-    HOST_NAME,
+use crate::client_structs::{
+    ClientCard, CountedCardResponse, CutCardResponse, CutCards, ParsedHand, RandomHandResponse,
+    ScoreResponse,
 };
-use actix_web::{web::Path, HttpResponse, Responder};
+use actix_web::{web::Path, HttpRequest, HttpResponse, Responder};
 use cribbage_library::{
     cards::Card,
     counting::score_counting_cards_played,
@@ -15,6 +12,14 @@ use cribbage_library::{
 };
 use rand::prelude::{Rng, SliceRandom};
 
+///
+/// given the HttpRequest returns the hostname in the form of localhost:8080/api
+macro_rules! get_hostname {
+    ($req:expr) => {
+        format!("{}/api", $req.app_config().host());
+    };
+}
+
 /// cut the cards to see who goes first
 ///
 ///  sample URLs:
@@ -22,11 +27,12 @@ use rand::prelude::{Rng, SliceRandom};
 ///
 ///  returns: the two cut cards and the repeat URL.  the client is written to assume a shared notion of the deck
 ///           so we just return 2 numbers bewtween 0 and 51
-pub async fn cut_cards() -> impl Responder {
+pub async fn cut_cards(req: HttpRequest) -> impl Responder {
     let mut rng = rand::thread_rng();
     let first = rng.gen_range(0..51) as usize;
     let mut second = rng.gen_range(0..51) as usize;
-    while first == second {
+    while first % 13 == second % 13 {
+        // % 13 gives Rank and we can't have the rank the same, as it'd be a tie and we'd just draw again
         second = rng.gen_range(0..51) as usize;
     }
 
@@ -34,7 +40,7 @@ pub async fn cut_cards() -> impl Responder {
         Ok(cc) => {
             let response = CutCardResponse {
                 CutCards: cc,
-                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), first, second),
+                RepeatUrl: format!("{}/cutcards/{},{}", get_hostname!(req), first, second),
             };
             return HttpResponse::Ok().body(serde_json::to_string(&response).unwrap());
         }
@@ -52,7 +58,7 @@ pub async fn cut_cards() -> impl Responder {
 ///
 /// returns: the two cut cards
 ///
-pub async fn cut_cards_repeat(cards: Path<String>) -> impl Responder {
+pub async fn cut_cards_repeat(req: HttpRequest, cards: Path<String>) -> impl Responder {
     let cards = cards.into_inner();
     let tokens: Vec<&str> = cards.split(",").collect();
     if tokens.len() != 2 {
@@ -70,13 +76,11 @@ pub async fn cut_cards_repeat(cards: Path<String>) -> impl Responder {
         Ok(cc) => {
             let response = CutCardResponse {
                 CutCards: cc,
-                RepeatUrl: format!("{}/cutcards/{},{}", HOST_NAME.get().unwrap(), pair.0, pair.1),
+                RepeatUrl: format!("{}/cutcards/{},{}", get_hostname!(req), pair.0, pair.1),
             };
             HttpResponse::Ok().body(serde_json::to_string(&response).unwrap())
         }
-        Err(e) => {
-            HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap())
-        }
+        Err(e) => HttpResponse::BadRequest().body(serde_json::to_string(&e).unwrap()),
     }
 }
 
@@ -274,6 +278,7 @@ pub async fn score_counted_cards(path: Path<(String, u32, String)>) -> impl Resp
 /// helper function for getting a random hand
 ///
 fn get_random_hand_internal(
+    req: HttpRequest,
     is_computer_crib: bool,
     cards: Vec<usize>,
 ) -> Option<RandomHandResponse> {
@@ -314,7 +319,7 @@ fn get_random_hand_internal(
 
     response.RepeatUrl = format!(
         "{}/getrandomhand/{}/{}/{}",
-        HOST_NAME.get().unwrap(),
+        get_hostname!(req),
         is_computer_crib,
         indices,
         cards[12]
@@ -326,14 +331,16 @@ fn get_random_hand_internal(
 /// only returns the 13 cards (6 for computer, 6 for player, 1 shared)
 /// also returns the cards that the computer should give to the crib
 ///
-pub async fn get_random_hand(path: Path<bool>) -> impl Responder {
+/// sample url: http://localhost:8080/api/getrandomhand/true
+///
+pub async fn get_random_hand(req: HttpRequest, path: Path<bool>) -> impl Responder {
     let is_computer_crib = path.into_inner();
 
     let mut rng = rand::thread_rng();
     let mut deck = (0..51).collect::<Vec<_>>();
     deck.shuffle(&mut rng);
 
-    let response = match get_random_hand_internal(is_computer_crib, deck) {
+    let response = match get_random_hand_internal(req, is_computer_crib, deck) {
         Some(response) => response,
         None => {
             return HttpResponse::BadRequest().body(
@@ -351,7 +358,11 @@ pub async fn get_random_hand(path: Path<bool>) -> impl Responder {
 
 /// useful for debugging the client - this will give the same hand that was returned from get_random_hand
 ///
-pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl Responder {
+/// sample url: localhost:8080/api/getrandomhand/true/21,49,41,15,46,17,34,24,22,38,19,31/20
+pub async fn get_random_hand_repeat(
+    req: HttpRequest,
+    path: Path<(bool, String, String)>,
+) -> impl Responder {
     let path = path.into_inner();
     let is_computer_crib = path.0;
 
@@ -395,7 +406,7 @@ pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl 
         };
     }
     indices.push(shared_card_index);
-    let response = match get_random_hand_internal(is_computer_crib, indices) {
+    let response = match get_random_hand_internal(req, is_computer_crib, indices) {
         Some(response) => response,
         None => {
             return HttpResponse::BadRequest().body(
@@ -421,7 +432,7 @@ pub async fn get_random_hand_repeat(path: Path<(bool, String, String)>) -> impl 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{game_handlers, safe_set_port, HOST_NAME, PORT};
+    use crate::{game_handlers, safe_set_port, PORT};
     use actix_web::{test, web, App};
     use cribbage_library::scoring::CombinationName;
     use std::env;
